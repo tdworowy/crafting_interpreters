@@ -1,6 +1,11 @@
 from enum import Enum, auto
 
 
+class LexicalError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
 class TokenType(Enum):
     # Single-character tokens.
     LEFT_PAREN = auto()
@@ -22,7 +27,8 @@ class TokenType(Enum):
     EQUAL_EQUAL = auto()
     GREATER = auto()
     GREATER_EQUAL = auto()
-    LESS, LESS_EQUAL = auto()
+    LESS = auto()
+    LESS_EQUAL = auto()
 
     # Literals.
     IDENTIFIER = auto()
@@ -73,12 +79,19 @@ class Scaner:
         self.start = 0
         self.current = 0
         self.line = 1
+        self.had_error = False
+
+    def report_error(self, char: str, line: int):
+        self.had_error = True
+        print(f"Unexpected character: {char} in line: {line}")
 
     def is_at_end(self) -> bool:
         return self.current >= len(self.source)
 
     def advance(self):
-        return self.source[self.current + 1]
+        next_char = self.source[self.current]
+        self.current += 1
+        return next_char
 
     def add_token(self, token_type: TokenType, literal: str | None = None):
         text = self.source[self.start : self.current]
@@ -86,8 +99,17 @@ class Scaner:
             Token(token_type=token_type, lexeme=text, literal=literal, line=self.line)
         )
 
+    def match(self, expected: str) -> bool:
+        if self.is_at_end():
+            return False
+        if self.source[self.current] != expected:
+            return False
+        self.current += 1
+        return True
+
     def scan_token(self):
-        match self.advance():
+        char = self.advance()
+        match char:
             case "(":
                 self.add_token(token_type=TokenType.LEFT_PAREN)
             case ")":
@@ -108,6 +130,36 @@ class Scaner:
                 self.add_token(token_type=TokenType.SEMICOLON)
             case "*":
                 self.add_token(token_type=TokenType.STAR)
+            case "!":
+                self.add_token(
+                    token_type=(
+                        TokenType.BANG_EQUAL if self.match("=") else TokenType.BANG
+                    )
+                )
+            case "=":
+                self.add_token(
+                    token_type=(
+                        TokenType.EQUAL_EQUAL if self.match("=") else TokenType.EQUAL
+                    )
+                )
+            case "<":
+                self.add_token(
+                    token_type=(
+                        TokenType.LESS_EQUAL if self.match("=") else TokenType.LESS
+                    )
+                )
+            case ">":
+                self.add_token(
+                    token_type=(
+                        TokenType.GREATER_EQUAL
+                        if self.match("=")
+                        else TokenType.GREATER
+                    )
+                )
+            case " ":
+                pass
+            case _:
+                self.report_error(char=char, line=self.line)
 
     def scan_tokens(self) -> list[Token]:
         while not self.is_at_end():
@@ -117,3 +169,10 @@ class Scaner:
             Token(token_type=TokenType.EOF, lexeme="", literal=None, line=self.line)
         )
         return self.tokens
+
+
+if __name__ == "__main__":
+    scaner = Scaner(source="+ - <= < !=")
+    scaner.scan_tokens()
+    for token in scaner.tokens:
+        print(token.token_type)
