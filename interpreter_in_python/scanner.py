@@ -88,6 +88,11 @@ class Scaner:
     def is_at_end(self) -> bool:
         return self.current >= len(self.source)
 
+    def peek(self) -> str:
+        if self.is_at_end():
+            return "\0"
+        return self.source[self.current]
+
     def advance(self):
         next_char = self.source[self.current]
         self.current += 1
@@ -156,8 +161,20 @@ class Scaner:
                         else TokenType.GREATER
                     )
                 )
+            case "/":
+                if self.match("/"):
+                    while self.peek() != "\n" and not self.is_at_end():
+                        self.advance()
+                else:
+                    self.add_token(token_type=TokenType.SLASH)
             case " ":
                 pass
+            case "\r":
+                pass
+            case "\t":
+                pass
+            case "\n":
+                self.line += 1
             case _:
                 self.report_error(char=char, line=self.line)
 
