@@ -69,7 +69,7 @@ class Token:
         return f"{self.token_type} {self.lexeme} {self.literal}"
 
 
-class Scaner:
+class Scanner:
     keywords: dict[str, Token]
 
     def __init__(self, source: str):
@@ -186,10 +186,3 @@ class Scaner:
             Token(token_type=TokenType.EOF, lexeme="", literal=None, line=self.line)
         )
         return self.tokens
-
-
-if __name__ == "__main__":
-    scaner = Scaner(source="+ - <= < !=")
-    scaner.scan_tokens()
-    for token in scaner.tokens:
-        print(token.token_type)
