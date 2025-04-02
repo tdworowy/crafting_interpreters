@@ -7,7 +7,18 @@ def test_scan_tokens():
     * ()
     /
     // 
-    /"""
+    /
+    "test"
+    "test
+    test"
+    2
+    22
+    22.22
+    or
+    var
+    false
+    test
+    """
     expected_tokens = [
         TokenType.PLUS,
         TokenType.MINUS,
@@ -21,6 +32,15 @@ def test_scan_tokens():
         TokenType.RIGHT_PAREN,
         TokenType.SLASH,
         TokenType.SLASH,
+        TokenType.STRING,
+        TokenType.STRING,
+        TokenType.NUMBER,
+        TokenType.NUMBER,
+        TokenType.NUMBER,
+        TokenType.OR,
+        TokenType.VAR,
+        TokenType.FALSE,
+        TokenType.IDENTIFIER,
         TokenType.EOF,
     ]
     scanner = Scanner(source=source)
