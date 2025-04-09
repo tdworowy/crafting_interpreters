@@ -53,12 +53,15 @@ class TokenType(Enum):
     VAR = auto()
     WHILE = auto()
 
+    # Comment
+    COMMENT = auto()
+
     EOF = auto()
 
 
 class Token:
     def __init__(
-        self, token_type: TokenType, lexeme: str, literal: str | float | None, line: int
+            self, token_type: TokenType, lexeme: str, literal: str | float | None, line: int
     ):
         self.token_type = token_type
         self.lexeme = lexeme
@@ -125,7 +128,7 @@ class Scanner:
         return next_char
 
     def add_token(self, token_type: TokenType, literal: str | float | None = None):
-        text = self.source[self.start : self.current]
+        text = self.source[self.start: self.current]
         self.tokens.append(
             Token(token_type=token_type, lexeme=text, literal=literal, line=self.line)
         )
@@ -146,7 +149,7 @@ class Scanner:
         if self.is_at_end():
             self.report_error_unterminated_string(line=self.line)
         self.advance()
-        literal = self.source[self.start + 1 : self.current - 1]
+        literal = self.source[self.start + 1: self.current - 1]
         self.add_token(token_type=TokenType.STRING, literal=literal)
 
     def number(self):
@@ -157,18 +160,36 @@ class Scanner:
         while self.peek().isdigit():
             self.advance()
         self.add_token(
-            TokenType.NUMBER, literal=float(self.source[self.start : self.current])
+            TokenType.NUMBER, literal=float(self.source[self.start: self.current])
         )
 
     def identifier(self):
         while self.peek().isalnum():
             self.advance()
-        text = self.source[self.start : self.current]
+        text = self.source[self.start: self.current]
         token_type = self.keywords.get(text, None)
         if token_type:
             self.add_token(token_type=token_type)
         else:
             self.add_token(token_type=TokenType.IDENTIFIER)
+
+    def one_line_comment(self):
+        while self.peek() != "\n" and not self.is_at_end():
+            self.advance()
+        self.add_token(
+            token_type=TokenType.COMMENT, literal=self.source[self.start: self.current]
+        )
+
+    def multi_line_comment(self):
+        while self.peek() != "*" and self.peek_next() != "/" and not self.is_at_end():
+            if self.match("\n"):
+                self.line += 1
+            self.advance()
+        self.advance()
+        self.advance()  # handle last 2 characters */
+        self.add_token(
+            token_type=TokenType.COMMENT, literal=self.source[self.start: self.current]
+        )
 
     def scan_token(self):
         char = self.advance()
@@ -221,8 +242,9 @@ class Scanner:
                 )
             case "/":
                 if self.match("/"):
-                    while self.peek() != "\n" and not self.is_at_end():
-                        self.advance()
+                    self.one_line_comment()
+                elif self.match("*"):
+                    self.multi_line_comment()
                 else:
                     self.add_token(token_type=TokenType.SLASH)
             case " ":

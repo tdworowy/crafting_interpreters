@@ -6,7 +6,9 @@ def test_scan_tokens():
     >= != {}
     * ()
     /
-    // 
+    // test test
+    /* test test 
+    test test */
     /
     "test"
     "test
@@ -31,6 +33,8 @@ def test_scan_tokens():
         TokenType.LEFT_PAREN,
         TokenType.RIGHT_PAREN,
         TokenType.SLASH,
+        TokenType.COMMENT,
+        TokenType.COMMENT,
         TokenType.SLASH,
         TokenType.STRING,
         TokenType.STRING,
