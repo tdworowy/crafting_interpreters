@@ -1,4 +1,5 @@
-from src.scanner import Scanner, TokenType
+from src.scanner import Scanner
+from src.token_ import TokenType
 
 
 def test_scan_tokens():
