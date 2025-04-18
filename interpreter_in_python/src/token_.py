@@ -56,7 +56,11 @@ class TokenType(Enum):
 
 class Token:
     def __init__(
-        self, token_type: TokenType, lexeme: str, literal: str | float | None, line: int
+        self,
+        token_type: TokenType,
+        lexeme: str,
+        literal: str | float | None = None,
+        line: int = 0,
     ):
         self.token_type = token_type
         self.lexeme = lexeme
