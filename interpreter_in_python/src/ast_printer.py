@@ -1,20 +1,5 @@
-from src.expr import (
-    Assign,
-    Binary,
-    Call,
-    Expr,
-    Get,
-    Grouping,
-    Literal,
-    Logical,
-    Set,
-    Super,
-    T,
-    This,
-    Unary,
-    Variable,
-    Visitor,
-)
+from src.expr import (Assign, Binary, Call, Expr, Get, Grouping, Literal,
+                      Logical, Set, Super, T, This, Unary, Variable, Visitor)
 from src.token_ import Token
 
 

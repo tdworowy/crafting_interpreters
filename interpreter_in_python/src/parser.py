@@ -1,4 +1,4 @@
-from src.expr import Expr, Binary, Unary, Literal, Grouping
+from src.expr import Binary, Expr, Grouping, Literal, Unary
 from src.token_ import Token, TokenType
 
 
@@ -76,7 +76,9 @@ class Parser:
             ]
         ):
             expr = self.expression()
-            self.consume(token_type=TokenType.RIGHT_PAREN, message="Expect ')' after expression.")
+            self.consume(
+                token_type=TokenType.RIGHT_PAREN, message="Expect ')' after expression."
+            )
             return Grouping(expression=expr)
 
     def match(self, tokens_types: list[TokenType]) -> bool:
