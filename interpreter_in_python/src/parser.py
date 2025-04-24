@@ -12,6 +12,21 @@ class Parser:
         self.tokens = tokens
         self.current = 0
 
+    @staticmethod
+    def get_parsing_error(token: Token, message: str) -> PassingError:
+        if token.token_type == TokenType.EOF:
+            message = f"{token.line} at end [{message}]"
+        else:
+            message = f"{token.line} at {token.lexeme} [{message}]"
+        print(message)
+        return PassingError(message)
+
+    def parse(self) -> Expr | None:
+        try:
+            return self.expression()
+        except PassingError:
+            return None
+
     def expression(self) -> Expr:
         return self.equality()
 
@@ -59,6 +74,11 @@ class Parser:
             operator = self.previous()
             right = self.unary()
             return Unary(operator=operator, right=right)
+        elif self.match([TokenType.PLUS, TokenType.STAR, TokenType.SLASH]):
+            raise self.get_parsing_error(
+                token=self.previous(),
+                message=f"Binary operator without left-hand operand",
+            )
         return self.primary()
 
     def primary(self) -> Expr:
@@ -80,6 +100,11 @@ class Parser:
                 token_type=TokenType.RIGHT_PAREN, message="Expect ')' after expression."
             )
             return Grouping(expression=expr)
+
+        raise self.get_parsing_error(
+            token=self.peek(),
+            message=f"Expected expression.",
+        )
 
     def match(self, tokens_types: list[TokenType]) -> bool:
         for token in tokens_types:
@@ -112,4 +137,22 @@ class Parser:
         if self.check(token_type):
             return self.advance()
         else:
-            raise PassingError(f"{self.peek()} {message}")
+            raise self.get_parsing_error(token=self.peek(), message=message)
+
+    def synchronize(self):
+        self.advance()
+        while not self.is_at_end():
+            if self.previous().token_type == TokenType.SEMICOLON:
+                return
+            if self.peek().token_type in [
+                TokenType.CLASS,
+                TokenType.FUN,
+                TokenType.VAR,
+                TokenType.FOR,
+                TokenType.IF,
+                TokenType.WHILE,
+                TokenType.PRINT,
+                TokenType.RETURN,
+            ]:
+                return
+            self.advance()

@@ -5,7 +5,7 @@ from src.token_ import Token, TokenType
 
 def test_ast_printer_assign():
     result = AstPrinter().print_ast(
-        Assign(
+        expr=Assign(
             name=Token(
                 token_type=TokenType.IDENTIFIER, lexeme="x", literal=None, line=1
             ),
@@ -17,7 +17,7 @@ def test_ast_printer_assign():
 
 def test_ast_printer_binary():
     result = AstPrinter().print_ast(
-        Binary(
+        expr=Binary(
             left=Literal(value=2),
             operator=Token(
                 token_type=TokenType.LESS_EQUAL, lexeme="<=", literal=None, line=1
@@ -40,4 +40,4 @@ def test_expression():
         right=Grouping(Literal(45.67)),
     )
 
-    assert AstPrinter().print_ast(expression) == "(* (- 123) (group 45.67))"
+    assert AstPrinter().print_ast(expr=expression) == "(* (- 123) (group 45.67))"
