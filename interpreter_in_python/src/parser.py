@@ -1,5 +1,5 @@
 from src.expr import Binary, Expr, Grouping, Literal, Unary
-from src.stmt import Stmt, Print, Expression
+from src.stmt import Expression, Print, Stmt
 from src.token_ import Token, TokenType
 
 

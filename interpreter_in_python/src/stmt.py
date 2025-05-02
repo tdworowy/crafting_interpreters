@@ -3,7 +3,7 @@ from abc import ABC
 from dataclasses import dataclass
 from typing import TypeVar
 
-from src.expr import Variable, Expr
+from src.expr import Expr, Variable
 from src.token_ import Token
 
 T = TypeVar("T")

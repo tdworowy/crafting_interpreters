@@ -19,19 +19,19 @@ from src.expr import (
 )
 from src.run_time_exception import RuneTimeException
 from src.stmt import (
-    VisitorStmt,
-    Expression,
+    Block,
     Class,
+    Expression,
     Function,
     If,
     Print,
     Return,
-    Var,
-    While,
-    Block,
     Stmt,
+    Var,
+    VisitorStmt,
+    While,
 )
-from src.token_ import TokenType, Token
+from src.token_ import Token, TokenType
 
 
 @multimethod
