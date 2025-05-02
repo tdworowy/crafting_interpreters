@@ -9,14 +9,12 @@ class Lox:
         self.had_error = False
 
     def run(self, source: str):
-        scanner = Scanner(source)
+        scanner = Scanner(source=source)
         self.had_error = scanner.had_error
         tokens = scanner.scan_tokens()
 
-        parser = Parser(tokens)
-        expr = parser.parse()
+        parser = Parser(tokens=tokens)
+        statements = parser.parse()
 
-        value = self.interpreter.interpret(expr)
+        self.interpreter.interpret(statements=statements)
         self.had_error = self.interpreter.had_error
-
-        print(value)

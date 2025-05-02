@@ -38,9 +38,12 @@ def test_incorrect_minus():
 
 
 def test_divide_by_zero():
-    expr = Binary(
-        left=Literal(value=2),
-        operator=Token(token_type=TokenType.SLASH, lexeme="/", literal=None, line=1),
-        right=Literal(value=0),
-    )
-    Interpreter().evaluate(expr=expr)
+    with pytest.raises(RuneTimeException):
+        expr = Binary(
+            left=Literal(value=2),
+            operator=Token(
+                token_type=TokenType.SLASH, lexeme="/", literal=None, line=1
+            ),
+            right=Literal(value=0),
+        )
+        Interpreter().evaluate(expr=expr)

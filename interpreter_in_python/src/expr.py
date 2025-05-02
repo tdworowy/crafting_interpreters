@@ -8,7 +8,7 @@ from src.token_ import Token
 T = TypeVar("T")
 
 
-class Visitor(ABC):
+class VisitorExpr(ABC):
     @abc.abstractmethod
     def visit_assign_expr(self, expr: "Assign") -> T:
         pass
@@ -61,7 +61,7 @@ class Visitor(ABC):
 class Expr(ABC):
 
     @abc.abstractmethod
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorExpr) -> T:
         pass
 
 
@@ -70,7 +70,7 @@ class Assign(Expr):
     name: Token
     value: Expr
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorExpr) -> T:
         return visitor.visit_assign_expr(self)
 
 
@@ -80,7 +80,7 @@ class Binary(Expr):
     operator: Token
     right: Expr
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorExpr) -> T:
         return visitor.visit_binary_expr(self)
 
 
@@ -90,7 +90,7 @@ class Call(Expr):
     paren: Token
     arguments: list[Expr]
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorExpr) -> T:
         return visitor.visit_call_expr(self)
 
 
@@ -99,7 +99,7 @@ class Get(Expr):
     object: Expr
     name: Token
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorExpr) -> T:
         return visitor.visit_get_expr(self)
 
 
@@ -107,7 +107,7 @@ class Get(Expr):
 class Grouping(Expr):
     expression: Expr
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorExpr) -> T:
         return visitor.visit_grouping_expr(self)
 
 
@@ -115,7 +115,7 @@ class Grouping(Expr):
 class Literal(Expr):
     value: str | int | float | bool | None
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorExpr) -> T:
         return visitor.visit_literal_expr(self)
 
 
@@ -125,7 +125,7 @@ class Logical(Expr):
     operator: Token
     right: Expr
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorExpr) -> T:
         return visitor.visit_logical_expr(self)
 
 
@@ -135,7 +135,7 @@ class Set(Expr):
     name: Token
     value: Expr
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorExpr) -> T:
         return visitor.visit_set_expr(self)
 
 
@@ -144,7 +144,7 @@ class Super(Expr):
     keyword: Token
     method: Token
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorExpr) -> T:
         return visitor.visit_super_expr(self)
 
 
@@ -152,7 +152,7 @@ class Super(Expr):
 class This(Expr):
     keyword: Token
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorExpr) -> T:
         return visitor.visit_this_expr(self)
 
 
@@ -161,7 +161,7 @@ class Unary(Expr):
     operator: Token
     right: Expr
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorExpr) -> T:
         return visitor.visit_unary_expr(self)
 
 
@@ -169,5 +169,5 @@ class Unary(Expr):
 class Variable(Expr):
     name: Token
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorExpr) -> T:
         return visitor.visit_variable_expr(self)

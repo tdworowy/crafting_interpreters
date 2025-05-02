@@ -9,7 +9,7 @@ from src.token_ import Token
 T = TypeVar("T")
 
 
-class Visitor(ABC):
+class VisitorStmt(ABC):
     @abc.abstractmethod
     def visit_block_stmt(self, stmt: "Block") -> T:
         pass
@@ -50,7 +50,7 @@ class Visitor(ABC):
 class Stmt(ABC):
 
     @abc.abstractmethod
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorStmt) -> T:
         pass
 
 
@@ -58,7 +58,7 @@ class Stmt(ABC):
 class Block(Stmt):
     statements: list[Stmt]
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorStmt) -> T:
         return visitor.visit_block_stmt(self)
 
 
@@ -66,7 +66,7 @@ class Block(Stmt):
 class Expression(Stmt):
     expression: Expr
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorStmt) -> T:
         return visitor.visit_expression_stmt(self)
 
 
@@ -76,7 +76,7 @@ class Function(Stmt):
     params: list[Token]
     body: list[Stmt]
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorStmt) -> T:
         return visitor.visit_function_stmt(self)
 
 
@@ -86,7 +86,7 @@ class Class(Stmt):
     supper_class: Variable
     methods = list[Function]
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorStmt) -> T:
         return visitor.visit_class_stmt(self)
 
 
@@ -96,7 +96,7 @@ class If(Stmt):
     then_branch: Stmt
     else_branch: Stmt
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorStmt) -> T:
         return visitor.visit_if_stmt(self)
 
 
@@ -104,7 +104,7 @@ class If(Stmt):
 class Print(Stmt):
     expression: Expr
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorStmt) -> T:
         return visitor.visit_print_stmt(self)
 
 
@@ -113,7 +113,7 @@ class Return(Stmt):
     keyword: Token
     value: Expr
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorStmt) -> T:
         return visitor.visit_return_stmt(self)
 
 
@@ -122,7 +122,7 @@ class Var(Stmt):
     name: Token
     initializer: Expr
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorStmt) -> T:
         return visitor.visit_var_stmt(self)
 
 
@@ -131,5 +131,5 @@ class While(Stmt):
     condition: Expr
     body: Stmt
 
-    def accept(self, visitor: Visitor) -> T:
+    def accept(self, visitor: VisitorStmt) -> T:
         return visitor.visit_while_stmt(self)

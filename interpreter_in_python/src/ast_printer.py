@@ -13,12 +13,12 @@ from src.expr import (
     This,
     Unary,
     Variable,
-    Visitor,
+    VisitorExpr,
 )
 from src.token_ import Token
 
 
-class AstPrinter(Visitor):
+class AstPrinter(VisitorExpr):
 
     def print_ast(self, expr: Expr):
         return expr.accept(self)

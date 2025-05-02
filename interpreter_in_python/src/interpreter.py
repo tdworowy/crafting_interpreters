@@ -15,9 +15,22 @@ from src.expr import (
     This,
     Unary,
     Variable,
-    Visitor,
+    VisitorExpr,
 )
 from src.run_time_exception import RuneTimeException
+from src.stmt import (
+    VisitorStmt,
+    Expression,
+    Class,
+    Function,
+    If,
+    Print,
+    Return,
+    Var,
+    While,
+    Block,
+    Stmt,
+)
 from src.token_ import TokenType, Token
 
 
@@ -54,7 +67,7 @@ def check_same_type(operator: Token, left: str | int | float, right: str | int |
         )
 
 
-class Interpreter(Visitor):
+class Interpreter(VisitorExpr, VisitorStmt):
 
     def __init__(self):
         self.had_error = False
@@ -63,15 +76,47 @@ class Interpreter(Visitor):
         self.had_error = True
         print(f"{error.message}\n[line {error.token.line} ]")
 
-    def interpret(self, expr: Expr):
+    def interpret(self, statements: list[Stmt]):
         try:
-            value = self.evaluate(expr)
-            return value
+            for stmt in statements:
+                self.execute(stmt)
+
         except RuneTimeException as etx:
             self.run_time_error(etx)
 
     def evaluate(self, expr: Expr) -> T:
         return expr.accept(self)
+
+    def execute(self, stmt: Stmt) -> T:
+        return stmt.accept(self)
+
+    def visit_class_stmt(self, stmt: "Class") -> T:
+        pass
+
+    def visit_expression_stmt(self, stmt: "Expression") -> None:
+        self.evaluate(stmt.expression)
+
+    def visit_function_stmt(self, stmt: "Function") -> T:
+        pass
+
+    def visit_if_stmt(self, stmt: "If") -> T:
+        pass
+
+    def visit_print_stmt(self, stmt: "Print") -> None:
+        value = self.evaluate(stmt.expression)
+        print(value)
+
+    def visit_return_stmt(self, stmt: "Return") -> T:
+        pass
+
+    def visit_var_stmt(self, stmt: "Var") -> T:
+        pass
+
+    def visit_while_stmt(self, stmt: "While") -> T:
+        pass
+
+    def visit_block_stmt(self, stmt: "Block") -> T:
+        pass
 
     def visit_assign_expr(self, expr: Assign) -> T:
         raise NotImplementedError
