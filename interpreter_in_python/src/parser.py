@@ -1,9 +1,9 @@
-from src.expr import Binary, Expr, Grouping, Literal, Unary
-from src.stmt import Expression, Print, Stmt
+from src.expr import Binary, Expr, Grouping, Literal, Unary, Variable
+from src.stmt import Expression, Print, Stmt, Var
 from src.token_ import Token, TokenType
 
 
-class PassingError(Exception):
+class ParseError(Exception):
     def __init__(self, message):
         super().__init__(message)
 
@@ -14,22 +14,45 @@ class Parser:
         self.current = 0
 
     @staticmethod
-    def get_parsing_error(token: Token, message: str) -> PassingError:
+    def get_parsing_error(token: Token, message: str) -> ParseError:
         if token.token_type == TokenType.EOF:
             message = f"{token.line} at end [{message}]"
         else:
             message = f"{token.line} at {token.lexeme} [{message}]"
         print(message)
-        return PassingError(message)
+        return ParseError(message)
 
     def parse(self) -> list[Stmt]:
         statements = []
         while not self.is_at_end():
-            statements.append(self.statement())
+            statements.append(self.declaration())
         return statements
 
+    def declaration(self) -> Stmt:
+        try:
+            if self.match(tokens_types=[TokenType.VAR]):
+                return self.var_declaration()
+            else:
+                return self.statement()
+        except ParseError:
+            self.synchronize()
+
+    def var_declaration(self) -> Stmt:
+        name = self.consume(
+            token_type=TokenType.IDENTIFIER, message="Expect variable name."
+        )
+        initializer = None
+        if self.match(tokens_types=[TokenType.EQUAL]):
+            initializer = self.expression()
+
+        self.consume(
+            token_type=TokenType.SEMICOLON,
+            message="Expect ';' after variable declaration.",
+        )
+        return Var(name=name, initializer=initializer)
+
     def statement(self) -> Stmt:
-        if self.match([TokenType.PRINT]):
+        if self.match(tokens_types=[TokenType.PRINT]):
             return self.print_statement()
 
         return self.expression_statement()
@@ -49,7 +72,7 @@ class Parser:
 
     def equality(self) -> Expr:
         expr = self.comparison()
-        while self.match([TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL]):
+        while self.match(tokens_types=[TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL]):
             operator = self.previous()
             right = self.comparison()
             expr = Binary(left=expr, operator=operator, right=right)
@@ -58,7 +81,7 @@ class Parser:
     def comparison(self) -> Expr:
         expr = self.term()
         while self.match(
-            [
+            tokens_types=[
                 TokenType.GREATER,
                 TokenType.GREATER_EQUAL,
                 TokenType.LESS,
@@ -72,7 +95,7 @@ class Parser:
 
     def term(self) -> Expr:
         expr = self.factor()
-        while self.match([TokenType.MINUS, TokenType.PLUS]):
+        while self.match(tokens_types=[TokenType.MINUS, TokenType.PLUS]):
             operator = self.previous()
             right = self.factor()
             expr = Binary(left=expr, operator=operator, right=right)
@@ -80,18 +103,18 @@ class Parser:
 
     def factor(self) -> Expr:
         expr = self.unary()
-        while self.match([TokenType.SLASH, TokenType.STAR]):
+        while self.match(tokens_types=[TokenType.SLASH, TokenType.STAR]):
             operator = self.previous()
             right = self.unary()
             expr = Binary(left=expr, operator=operator, right=right)
         return expr
 
     def unary(self) -> Expr:
-        if self.match([TokenType.BANG, TokenType.MINUS]):
+        if self.match(tokens_types=[TokenType.BANG, TokenType.MINUS]):
             operator = self.previous()
             right = self.unary()
             return Unary(operator=operator, right=right)
-        elif self.match([TokenType.PLUS, TokenType.STAR, TokenType.SLASH]):
+        elif self.match(tokens_types=[TokenType.PLUS, TokenType.STAR, TokenType.SLASH]):
             raise self.get_parsing_error(
                 token=self.previous(),
                 message=f"Binary operator without left-hand operand",
@@ -99,16 +122,18 @@ class Parser:
         return self.primary()
 
     def primary(self) -> Expr:
-        if self.match([TokenType.FALSE]):
+        if self.match(tokens_types=[TokenType.FALSE]):
             return Literal(value=False)
-        if self.match([TokenType.TRUE]):
+        if self.match(tokens_types=[TokenType.TRUE]):
             return Literal(value=True)
-        if self.match([TokenType.NIL]):
+        if self.match(tokens_types=[TokenType.NIL]):
             return Literal(value=None)
-        if self.match([TokenType.NUMBER, TokenType.STRING]):
+        if self.match(tokens_types=[TokenType.NUMBER, TokenType.STRING]):
             return Literal(value=self.previous().literal)
+        if self.match(tokens_types=[TokenType.IDENTIFIER]):
+            return Variable(name=self.previous())
         if self.match(
-            [
+            tokens_types=[
                 TokenType.LEFT_PAREN,
             ]
         ):

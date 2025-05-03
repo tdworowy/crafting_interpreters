@@ -1,5 +1,6 @@
 from multimethod import multimethod
 
+from src.environment import Environment
 from src.expr import (
     Assign,
     Binary,
@@ -71,6 +72,7 @@ class Interpreter(VisitorExpr, VisitorStmt):
 
     def __init__(self):
         self.had_error = False
+        self.environment = Environment({})
 
     def run_time_error(self, error: RuneTimeException):
         self.had_error = True
@@ -109,8 +111,11 @@ class Interpreter(VisitorExpr, VisitorStmt):
     def visit_return_stmt(self, stmt: "Return") -> T:
         pass
 
-    def visit_var_stmt(self, stmt: "Var") -> T:
-        pass
+    def visit_var_stmt(self, stmt: "Var") -> None:
+        value = None
+        if stmt.initializer is not None:
+            value = self.evaluate(expr=stmt.initializer)
+        self.environment.define(name=stmt.name.lexeme, value=value)
 
     def visit_while_stmt(self, stmt: "While") -> T:
         pass
@@ -199,4 +204,4 @@ class Interpreter(VisitorExpr, VisitorStmt):
                 return None
 
     def visit_variable_expr(self, expr: Variable) -> T:
-        return expr.name.lexeme
+        return self.environment.get(name=expr.name)
