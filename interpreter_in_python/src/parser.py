@@ -1,5 +1,5 @@
-from src.expr import Binary, Expr, Grouping, Literal, Unary, Variable
-from src.stmt import Expression, Print, Stmt, Var
+from src.expr import Assign, Binary, Expr, Grouping, Literal, Unary, Variable
+from src.stmt import Block, Expression, Print, Stmt, Var
 from src.token_ import Token, TokenType
 
 
@@ -12,13 +12,14 @@ class Parser:
     def __init__(self, tokens: list[Token]):
         self.tokens = tokens
         self.current = 0
+        self.had_error = False
 
-    @staticmethod
-    def get_parsing_error(token: Token, message: str) -> ParseError:
+    def get_parsing_error(self, token: Token, message: str) -> ParseError:
         if token.token_type == TokenType.EOF:
             message = f"{token.line} at end [{message}]"
         else:
             message = f"{token.line} at {token.lexeme} [{message}]"
+        self.had_error = True
         print(message)
         return ParseError(message)
 
@@ -54,6 +55,8 @@ class Parser:
     def statement(self) -> Stmt:
         if self.match(tokens_types=[TokenType.PRINT]):
             return self.print_statement()
+        if self.match(tokens_types=[TokenType.LEFT_BRACE]):
+            return Block(self.block())
 
         return self.expression_statement()
 
@@ -62,13 +65,37 @@ class Parser:
         self.consume(token_type=TokenType.SEMICOLON, message="Expect ';' after value.")
         return Print(expression=value)
 
+    def block(self) -> list[Stmt]:
+        statements = []
+        while not self.check(token_type=TokenType.RIGHT_BRACE) and not self.is_at_end():
+            statements.append(self.declaration())
+        self.consume(
+            token_type=TokenType.RIGHT_BRACE, message="Expected '}' after block."
+        )
+        return statements
+
     def expression_statement(self) -> Stmt:
         expr = self.expression()
         self.consume(token_type=TokenType.SEMICOLON, message="Expect ';' after value.")
         return Expression(expression=expr)
 
     def expression(self) -> Expr:
-        return self.equality()
+        return self.assignment()
+
+    def assignment(self) -> Expr:
+        expr = self.equality()
+        if self.match([TokenType.EQUAL]):
+            equals = self.previous()
+            value = self.assignment()
+            if isinstance(expr, Variable):
+                name = expr.name
+                return Assign(name=name, value=value)
+            self.get_parsing_error(
+                token=equals,
+                message=f"Invalid assignment target.",
+            )
+        else:
+            return expr
 
     def equality(self) -> Expr:
         expr = self.comparison()

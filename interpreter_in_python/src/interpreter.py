@@ -81,7 +81,7 @@ class Interpreter(VisitorExpr, VisitorStmt):
     def interpret(self, statements: list[Stmt]):
         try:
             for stmt in statements:
-                self.execute(stmt)
+                self.execute(stmt=stmt)
 
         except RuneTimeException as etx:
             self.run_time_error(etx)
@@ -93,23 +93,23 @@ class Interpreter(VisitorExpr, VisitorStmt):
         return stmt.accept(self)
 
     def visit_class_stmt(self, stmt: "Class") -> T:
-        pass
+        raise NotImplementedError
 
     def visit_expression_stmt(self, stmt: "Expression") -> None:
         self.evaluate(stmt.expression)
 
     def visit_function_stmt(self, stmt: "Function") -> T:
-        pass
+        raise NotImplementedError
 
     def visit_if_stmt(self, stmt: "If") -> T:
-        pass
+        raise NotImplementedError
 
     def visit_print_stmt(self, stmt: "Print") -> None:
         value = self.evaluate(stmt.expression)
         print(value)
 
     def visit_return_stmt(self, stmt: "Return") -> T:
-        pass
+        raise NotImplementedError
 
     def visit_var_stmt(self, stmt: "Var") -> None:
         value = None
@@ -118,17 +118,22 @@ class Interpreter(VisitorExpr, VisitorStmt):
         self.environment.define(name=stmt.name.lexeme, value=value)
 
     def visit_while_stmt(self, stmt: "While") -> T:
-        pass
-
-    def visit_block_stmt(self, stmt: "Block") -> T:
-        pass
-
-    def visit_assign_expr(self, expr: Assign) -> T:
         raise NotImplementedError
 
+    def visit_block_stmt(self, stmt: "Block") -> None:
+        self.execute_block(
+            statements=stmt.statements,
+            environment=Environment(enclosing=self.environment, values={}),
+        )
+
+    def visit_assign_expr(self, expr: Assign) -> None:
+        value = self.evaluate(expr=expr.value)
+        self.environment.assign(name=expr.name, value=value)
+        return value
+
     def visit_binary_expr(self, expr: Binary) -> T:
-        left = self.evaluate(expr.left)
-        right = self.evaluate(expr.right)
+        left = self.evaluate(expr=expr.left)
+        right = self.evaluate(expr=expr.right)
         match expr.operator.token_type:
             case TokenType.MINUS:
                 check_number_operator(expr.operator, left, right)
@@ -205,3 +210,12 @@ class Interpreter(VisitorExpr, VisitorStmt):
 
     def visit_variable_expr(self, expr: Variable) -> T:
         return self.environment.get(name=expr.name)
+
+    def execute_block(self, statements: list[Stmt], environment: Environment):
+        previous = self.environment
+        try:
+            self.environment = environment
+            for statement in statements:
+                self.execute(stmt=statement)
+        finally:
+            self.environment = previous

@@ -1,0 +1,8 @@
+print 5 + (2 * (2 + 3) + 4) + 6;
+print 2 * 2;
+var x = 12;
+var y = 12;
+print x;
+print x + y;
+x=15;
+print x;
