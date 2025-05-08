@@ -8,13 +8,17 @@ class Lox:
         self.interpreter = Interpreter()
         self.had_error = False
 
-    def run(self, source: str):
+    def run(self, source: str, repl: bool) -> str | None:
         scanner = Scanner(source=source)
         self.had_error = scanner.had_error
         tokens = scanner.scan_tokens()
 
         parser = Parser(tokens=tokens)
-        statements = parser.parse()
+        if repl:
+            to_interpret = parser.parse_repl()
+        else:
+            to_interpret = parser.parse()
 
-        self.interpreter.interpret(statements=statements)
+        result = self.interpreter.interpret(to_interpret=to_interpret)
         self.had_error = self.interpreter.had_error
+        return result

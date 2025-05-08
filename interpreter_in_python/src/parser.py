@@ -12,6 +12,8 @@ class Parser:
     def __init__(self, tokens: list[Token]):
         self.tokens = tokens
         self.current = 0
+        self.allow_expression = False
+        self.found_expression = False
         self.had_error = False
 
     def get_parsing_error(self, token: Token, message: str) -> ParseError:
@@ -27,6 +29,17 @@ class Parser:
         statements = []
         while not self.is_at_end():
             statements.append(self.declaration())
+        return statements
+
+    def parse_repl(self) -> list[Stmt] | Expr:
+        self.allow_expression = True
+        statements = []
+        while not self.is_at_end():
+            statements.append(self.declaration())
+            if self.found_expression:
+                last: Expr = statements[-1].expression
+                return last
+            self.allow_expression = False
         return statements
 
     def declaration(self) -> Stmt:
@@ -76,7 +89,12 @@ class Parser:
 
     def expression_statement(self) -> Stmt:
         expr = self.expression()
-        self.consume(token_type=TokenType.SEMICOLON, message="Expect ';' after value.")
+        if self.allow_expression and self.is_at_end():
+            self.found_expression = True
+        else:
+            self.consume(
+                token_type=TokenType.SEMICOLON, message="Expect ';' after value."
+            )
         return Expression(expression=expr)
 
     def expression(self) -> Expr:

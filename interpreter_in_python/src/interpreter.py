@@ -1,3 +1,5 @@
+from enum import Enum, auto
+
 from multimethod import multimethod
 
 from src.environment import Environment
@@ -33,6 +35,11 @@ from src.stmt import (
     While,
 )
 from src.token_ import Token, TokenType
+
+
+class VariableType(Enum):
+    INITIALIZED = auto()
+    UNINITIALIZED = auto()
 
 
 @multimethod
@@ -78,13 +85,27 @@ class Interpreter(VisitorExpr, VisitorStmt):
         self.had_error = True
         print(f"{error.message}\n[line {error.token.line} ]")
 
-    def interpret(self, statements: list[Stmt]):
+    def interpret_statements(self, statements: list[Stmt]):
         try:
             for stmt in statements:
                 self.execute(stmt=stmt)
 
         except RuneTimeException as etx:
             self.run_time_error(etx)
+
+    def interpret_expression(self, expression: Expr) -> str:
+        try:
+            return self.evaluate(expression)
+
+        except RuneTimeException as etx:
+            self.run_time_error(etx)
+
+    def interpret(self, to_interpret: Expr | list[Stmt]) -> str | None:
+        match to_interpret:
+            case list():
+                self.interpret_statements(statements=to_interpret)
+            case Expr():
+                return self.interpret_expression(expression=to_interpret)
 
     def evaluate(self, expr: Expr) -> T:
         return expr.accept(self)
@@ -112,7 +133,7 @@ class Interpreter(VisitorExpr, VisitorStmt):
         raise NotImplementedError
 
     def visit_var_stmt(self, stmt: "Var") -> None:
-        value = None
+        value = VariableType.UNINITIALIZED
         if stmt.initializer is not None:
             value = self.evaluate(expr=stmt.initializer)
         self.environment.define(name=stmt.name.lexeme, value=value)
@@ -209,7 +230,12 @@ class Interpreter(VisitorExpr, VisitorStmt):
                 return None
 
     def visit_variable_expr(self, expr: Variable) -> T:
-        return self.environment.get(name=expr.name)
+        value = self.environment.get(name=expr.name)
+        if value == VariableType.UNINITIALIZED:
+            raise RuneTimeException(
+                token=expr.name, message="Variable must be initialized before use."
+            )
+        return value
 
     def execute_block(self, statements: list[Stmt], environment: Environment):
         previous = self.environment
