@@ -20,7 +20,7 @@ from src.expr import (
     Variable,
     VisitorExpr,
 )
-from src.run_time_exception import RuneTimeException
+from src.run_time_exception import RunTimeException
 from src.stmt import (
     Block,
     Class,
@@ -48,7 +48,7 @@ def check_number_operator(operator: Token, operand: str | int | float):
         case int() | float():
             return
         case _:
-            raise RuneTimeException(
+            raise RunTimeException(
                 token=operator, message=f"Operand {operand} must be number."
             )
 
@@ -61,7 +61,7 @@ def check_number_operator(
         case (int() | float(), int() | float()):
             return
         case _:
-            raise RuneTimeException(
+            raise RunTimeException(
                 token=operator, message=f"Operands [{left},{right}] must be numbers."
             )
 
@@ -70,7 +70,7 @@ def check_same_type(operator: Token, left: str | int | float, right: str | int |
     if type(left) is type(right):
         return
     else:
-        raise RuneTimeException(
+        raise RunTimeException(
             token=operator, message=f"Operands [{left},{right}] need to had same type."
         )
 
@@ -81,7 +81,7 @@ class Interpreter(VisitorExpr, VisitorStmt):
         self.had_error = False
         self.environment = Environment({})
 
-    def run_time_error(self, error: RuneTimeException):
+    def run_time_error(self, error: RunTimeException):
         self.had_error = True
         print(f"{error.message}\n[line {error.token.line} ]")
 
@@ -90,14 +90,14 @@ class Interpreter(VisitorExpr, VisitorStmt):
             for stmt in statements:
                 self.execute(stmt=stmt)
 
-        except RuneTimeException as etx:
+        except RunTimeException as etx:
             self.run_time_error(etx)
 
     def interpret_expression(self, expression: Expr) -> str:
         try:
             return self.evaluate(expression)
 
-        except RuneTimeException as etx:
+        except RunTimeException as etx:
             self.run_time_error(etx)
 
     def interpret(self, to_interpret: Expr | list[Stmt]) -> str | None:
@@ -165,7 +165,7 @@ class Interpreter(VisitorExpr, VisitorStmt):
             case TokenType.SLASH:
                 check_number_operator(expr.operator, left, right)
                 if right == 0:
-                    raise RuneTimeException(
+                    raise RunTimeException(
                         token=expr.operator,
                         message=f"Division be zero [{left}/{right}].",
                     )
@@ -232,7 +232,7 @@ class Interpreter(VisitorExpr, VisitorStmt):
     def visit_variable_expr(self, expr: Variable) -> T:
         value = self.environment.get(name=expr.name)
         if value == VariableType.UNINITIALIZED:
-            raise RuneTimeException(
+            raise RunTimeException(
                 token=expr.name, message="Variable must be initialized before use."
             )
         return value

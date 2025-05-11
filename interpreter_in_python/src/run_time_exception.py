@@ -1,7 +1,7 @@
 from src.token_ import Token
 
 
-class RuneTimeException(RuntimeError):
+class RunTimeException(RuntimeError):
     def __init__(self, token: Token, message):
         self.token = token
         self.message = message

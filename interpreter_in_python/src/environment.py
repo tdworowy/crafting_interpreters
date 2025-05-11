@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.run_time_exception import RuneTimeException
+from src.run_time_exception import RunTimeException
 from src.token_ import Token
 
 
@@ -19,7 +19,7 @@ class Environment:
         elif self.enclosing:
             self.enclosing.assign(name=name, value=value)
         else:
-            raise RuneTimeException(
+            raise RunTimeException(
                 token=name, message=f"Undefined variable: [{name.lexeme}]"
             )
 
@@ -29,6 +29,6 @@ class Environment:
         elif self.enclosing:
             return self.enclosing.get(name)
         else:
-            raise RuneTimeException(
+            raise RunTimeException(
                 token=name, message=f"Undefined variable: [{name.lexeme}]"
             )

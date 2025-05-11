@@ -2,7 +2,7 @@ import pytest
 
 from src.expr import Binary, Literal
 from src.interpreter import Interpreter
-from src.run_time_exception import RuneTimeException
+from src.run_time_exception import RunTimeException
 from src.token_ import Token, TokenType
 
 
@@ -16,7 +16,7 @@ def test_two_plus_two():
 
 
 def test_incorrect_plus():
-    with pytest.raises(RuneTimeException):
+    with pytest.raises(RunTimeException):
         expr = Binary(
             left=Literal(value=2),
             operator=Token(token_type=TokenType.PLUS, lexeme="+", literal=None, line=1),
@@ -26,7 +26,7 @@ def test_incorrect_plus():
 
 
 def test_incorrect_minus():
-    with pytest.raises(RuneTimeException):
+    with pytest.raises(RunTimeException):
         expr = Binary(
             left=Literal(value=2),
             operator=Token(
@@ -38,7 +38,7 @@ def test_incorrect_minus():
 
 
 def test_divide_by_zero():
-    with pytest.raises(RuneTimeException):
+    with pytest.raises(RunTimeException):
         expr = Binary(
             left=Literal(value=2),
             operator=Token(
