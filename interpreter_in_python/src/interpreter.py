@@ -122,8 +122,11 @@ class Interpreter(VisitorExpr, VisitorStmt):
     def visit_function_stmt(self, stmt: "Function") -> T:
         raise NotImplementedError
 
-    def visit_if_stmt(self, stmt: "If") -> T:
-        raise NotImplementedError
+    def visit_if_stmt(self, stmt: "If") -> None:
+        if self.evaluate(expr=stmt.condition):
+            self.execute(stmt=stmt.then_branch)
+        elif stmt.else_branch:
+            self.execute(stmt=stmt.else_branch)
 
     def visit_print_stmt(self, stmt: "Print") -> None:
         value = self.evaluate(stmt.expression)
@@ -138,8 +141,9 @@ class Interpreter(VisitorExpr, VisitorStmt):
             value = self.evaluate(expr=stmt.initializer)
         self.environment.define(name=stmt.name.lexeme, value=value)
 
-    def visit_while_stmt(self, stmt: "While") -> T:
-        raise NotImplementedError
+    def visit_while_stmt(self, stmt: "While") -> None:
+        while self.evaluate(expr=stmt.condition):
+            self.execute(stmt=stmt.body)
 
     def visit_block_stmt(self, stmt: "Block") -> None:
         self.execute_block(
@@ -207,7 +211,14 @@ class Interpreter(VisitorExpr, VisitorStmt):
         return expr.value
 
     def visit_logical_expr(self, expr: Logical) -> T:
-        raise NotImplementedError
+        left = self.evaluate(expr=expr.left)
+        if expr.operator.token_type == TokenType.OR:
+            if left:
+                return left
+        else:
+            if not left:
+                return left
+        return self.evaluate(expr=expr.right)
 
     def visit_set_expr(self, expr: Set) -> T:
         raise NotImplementedError

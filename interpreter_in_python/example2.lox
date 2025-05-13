@@ -18,3 +18,19 @@ x = 15;
 print x;
 var z = nil;
 print z;
+
+x = 2;
+if (x == 2 and 2 == 2) print "if works 1";
+if (2 == 2 or 2 == 3) print "if works 2";
+if (2 == 3 or 2 == 2) print "if works 3";
+if (2 == 2 and 3 == 3) print "if works 4";
+
+if (x > 2 or x < 2) print "Shouldn't print"; else print "else works 1";
+if (x == 2 and x < 2) print "Shouldn't print"; else print "else works 2";
+if (x > 2 and x == 2) print "Shouldn't print"; else print "else works 3";
+
+var i = 0;
+while (i < 10) {
+    print i;
+    i = i +1;
+}

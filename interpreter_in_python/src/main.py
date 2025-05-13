@@ -2,7 +2,7 @@ from src.lox import Lox
 
 
 def main():
-    with open("../example2.lox") as f:
+    with open("../fib.lox") as f:
         source = f.read()
         Lox().run(source=source, repl=False)
 
