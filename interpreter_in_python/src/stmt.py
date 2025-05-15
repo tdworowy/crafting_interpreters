@@ -15,6 +15,10 @@ class VisitorStmt(ABC):
         pass
 
     @abc.abstractmethod
+    def visit_break_stmt(self, stmt: "Break") -> T:
+        pass
+
+    @abc.abstractmethod
     def visit_class_stmt(self, stmt: "Class") -> T:
         pass
 
@@ -60,6 +64,13 @@ class Block(Stmt):
 
     def accept(self, visitor: VisitorStmt) -> T:
         return visitor.visit_block_stmt(self)
+
+
+@dataclass
+class Break(Stmt):
+
+    def accept(self, visitor: VisitorStmt) -> T:
+        return visitor.visit_break_stmt(self)
 
 
 @dataclass

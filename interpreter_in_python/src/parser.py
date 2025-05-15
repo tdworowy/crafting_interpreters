@@ -1,5 +1,5 @@
 from src.expr import Assign, Binary, Expr, Grouping, Literal, Unary, Variable, Logical
-from src.stmt import Block, Expression, Print, Stmt, Var, If, While
+from src.stmt import Block, Expression, Print, Stmt, Var, If, While, Break
 from src.token_ import Token, TokenType
 
 
@@ -12,6 +12,7 @@ class Parser:
     def __init__(self, tokens: list[Token]):
         self.tokens = tokens
         self.current = 0
+        self.loop_depth = 0
         self.allow_expression = False
         self.found_expression = False
         self.had_error = False
@@ -74,6 +75,9 @@ class Parser:
             return self.print_statement()
         if self.match(tokens_types=[TokenType.WHILE]):
             return self.while_statement()
+        if self.match(tokens_types=[TokenType.BREAK]):
+            return self.break_statement()
+
         if self.match(tokens_types=[TokenType.LEFT_BRACE]):
             return Block(self.block())
 
@@ -101,15 +105,19 @@ class Parser:
         self.consume(
             token_type=TokenType.RIGHT_PAREN, message="Expect ')' after for clauses."
         )
-        body = self.statement()
-        if increment:
-            body = Block([body, Expression(expression=increment)])
-        if condition is None:
-            condition = Literal(value=True)
-        body = While(condition=condition, body=body)
-        if initializer:
-            body = Block([initializer, body])
-        return body
+        try:
+            self.loop_depth += 1
+            body = self.statement()
+            if increment:
+                body = Block([body, Expression(expression=increment)])
+            if condition is None:
+                condition = Literal(value=True)
+            body = While(condition=condition, body=body)
+            if initializer:
+                body = Block([initializer, body])
+            return body
+        finally:
+            self.loop_depth -= 1
 
     def if_statement(self) -> Stmt:
         self.consume(
@@ -140,8 +148,22 @@ class Parser:
         self.consume(
             token_type=TokenType.RIGHT_PAREN, message="Expect ')' after 'condition'."
         )
-        body = self.statement()
-        return While(condition=condition, body=body)
+        try:
+            self.loop_depth += 1
+            body = self.statement()
+            return While(condition=condition, body=body)
+        finally:
+            self.loop_depth -= 1
+
+    def break_statement(self) -> Stmt:
+        if self.loop_depth == 0:
+            self.get_parsing_error(
+                token=self.previous(), message="Must be inside a loop to use 'break'."
+            )
+        self.consume(
+            token_type=TokenType.SEMICOLON, message="Expect ';' after 'break'."
+        )
+        return Break()
 
     def block(self) -> list[Stmt]:
         statements = []

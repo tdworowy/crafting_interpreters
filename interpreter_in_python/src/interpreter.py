@@ -33,6 +33,7 @@ from src.stmt import (
     Var,
     VisitorStmt,
     While,
+    Break,
 )
 from src.token_ import Token, TokenType
 
@@ -40,6 +41,10 @@ from src.token_ import Token, TokenType
 class VariableType(Enum):
     INITIALIZED = auto()
     UNINITIALIZED = auto()
+
+
+class BreakException(RuntimeError):
+    pass
 
 
 @multimethod
@@ -142,14 +147,20 @@ class Interpreter(VisitorExpr, VisitorStmt):
         self.environment.define(name=stmt.name.lexeme, value=value)
 
     def visit_while_stmt(self, stmt: "While") -> None:
-        while self.evaluate(expr=stmt.condition):
-            self.execute(stmt=stmt.body)
+        try:
+            while self.evaluate(expr=stmt.condition):
+                self.execute(stmt=stmt.body)
+        except BreakException:
+            pass
 
     def visit_block_stmt(self, stmt: "Block") -> None:
         self.execute_block(
             statements=stmt.statements,
             environment=Environment(enclosing=self.environment, values={}),
         )
+
+    def visit_break_stmt(self, stmt: "Break") -> None:
+        raise BreakException
 
     def visit_assign_expr(self, expr: Assign) -> None:
         value = self.evaluate(expr=expr.value)
