@@ -9,7 +9,7 @@ from src.expr import (
     Logical,
     Call,
 )
-from src.stmt import Block, Expression, Print, Stmt, Var, If, While, Break
+from src.stmt import Block, Expression, Print, Stmt, Var, If, While, Break, Function
 from src.token_ import Token, TokenType
 
 
@@ -55,12 +55,47 @@ class Parser:
 
     def declaration(self) -> Stmt:
         try:
+            if self.match(tokens_types=[TokenType.FUN]):
+                return self.function("function")
             if self.match(tokens_types=[TokenType.VAR]):
                 return self.var_declaration()
             else:
                 return self.statement()
         except ParseError:
             self.synchronize()
+
+    def function(self, kind: str) -> Stmt:
+        name = self.consume(
+            token_type=TokenType.IDENTIFIER, message=f"Expect {kind} name."
+        )
+        self.consume(
+            token_type=TokenType.LEFT_PAREN, message=f"fExpect '(' after {kind} name."
+        )
+        parameters = []
+        if not self.check(token_type=TokenType.RIGHT_PAREN):
+            while True:
+                if len(parameters) >= 255:
+                    self.get_parsing_error(
+                        token=self.peek(),
+                        message="Can't have more than 255 parameters.",
+                    )
+                parameters.append(
+                    self.consume(
+                        token_type=TokenType.IDENTIFIER,
+                        message="Expect parameter name.",
+                    )
+                )
+                if not self.match(tokens_types=[TokenType.COMMA]):
+                    break
+        self.consume(
+            token_type=TokenType.RIGHT_PAREN, message="Expect ')' after parameters."
+        )
+        self.consume(
+            token_type=TokenType.LEFT_BRACE,
+            message=f"Expect '\u007b' before {kind} body.",
+        )
+        body = self.block()
+        return Function(name=name, params=parameters, body=body)
 
     def var_declaration(self) -> Stmt:
         name = self.consume(

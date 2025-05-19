@@ -8,11 +8,14 @@ operator -> "==" | "!=" | "<" | "<=" | ">" | ">=" | "+" | "-" | "*" | "/;
 
 Precedence table:
 program -> statement* EOF;
-declaration -> varDecl | statement;
+declaration -> funcDecl | varDecl | statement;
 statement -> exprStmt | forStmt | ifStmt | printStmt | whileStmt | block;
 forStmt -> "for" "(" (varDecl | exprStmr | ";") expression? ";" expression? ")" statement;
 whileStmt -> "while" "(" expression ")" statement;
 ifStmt -> "if" "(" expression ")" statement ("else" statement)?;
+funcDecl -> "fun" function;
+function -> IDENTIFIER "(" parameters? ")" block;
+parameters -> IDENTIFIER ( "," IDENTIFIER)*;
 block -> "{" declaration* "}";
 varDecl -> "var" IDENTIFIER ("=" expression)?";";
 exprStmt -> expression ";";
