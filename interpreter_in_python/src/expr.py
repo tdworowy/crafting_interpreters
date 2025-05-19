@@ -1,5 +1,4 @@
-import abc
-from abc import ABC
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TypeVar
 
@@ -9,58 +8,58 @@ T = TypeVar("T")
 
 
 class VisitorExpr(ABC):
-    @abc.abstractmethod
+    @abstractmethod
     def visit_assign_expr(self, expr: "Assign") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_binary_expr(self, expr: "Binary") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_call_expr(self, expr: "Call") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_get_expr(self, expr: "Get") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_grouping_expr(self, expr: "Grouping") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_literal_expr(self, expr: "Literal") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_logical_expr(self, expr: "Logical") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_set_expr(self, expr: "Set") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_super_expr(self, expr: "Super") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_this_expr(self, expr: "This") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_unary_expr(self, expr: "Unary") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_variable_expr(self, expr: "Variable") -> T:
         pass
 
 
 class Expr(ABC):
 
-    @abc.abstractmethod
+    @abstractmethod
     def accept(self, visitor: VisitorExpr) -> T:
         pass
 

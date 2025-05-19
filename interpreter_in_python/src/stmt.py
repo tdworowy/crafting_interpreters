@@ -1,5 +1,4 @@
-import abc
-from abc import ABC
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TypeVar
 
@@ -10,50 +9,50 @@ T = TypeVar("T")
 
 
 class VisitorStmt(ABC):
-    @abc.abstractmethod
+    @abstractmethod
     def visit_block_stmt(self, stmt: "Block") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_break_stmt(self, stmt: "Break") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_class_stmt(self, stmt: "Class") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_expression_stmt(self, stmt: "Expression") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_function_stmt(self, stmt: "Function") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_if_stmt(self, stmt: "If") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_print_stmt(self, stmt: "Print") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_return_stmt(self, stmt: "Return") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_var_stmt(self, stmt: "Var") -> T:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def visit_while_stmt(self, stmt: "While") -> T:
         pass
 
 
 class Stmt(ABC):
 
-    @abc.abstractmethod
+    @abstractmethod
     def accept(self, visitor: VisitorStmt) -> T:
         pass
 

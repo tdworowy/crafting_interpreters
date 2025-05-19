@@ -1,4 +1,14 @@
-from src.expr import Assign, Binary, Expr, Grouping, Literal, Unary, Variable, Logical
+from src.expr import (
+    Assign,
+    Binary,
+    Expr,
+    Grouping,
+    Literal,
+    Unary,
+    Variable,
+    Logical,
+    Call,
+)
 from src.stmt import Block, Expression, Print, Stmt, Var, If, While, Break
 from src.token_ import Token, TokenType
 
@@ -267,7 +277,32 @@ class Parser:
                 token=self.previous(),
                 message=f"Binary operator without left-hand operand",
             )
-        return self.primary()
+        return self.call()
+
+    def call(self) -> Expr:
+        expr = self.primary()
+        while True:
+            if self.match(tokens_types=[TokenType.LEFT_PAREN]):
+                expr = self.finish_call(callee=expr)
+            else:
+                break
+        return expr
+
+    def finish_call(self, callee: Expr) -> Expr:
+        arguments = []
+        if not self.check(token_type=TokenType.RIGHT_PAREN):
+            while True:
+                if len(arguments) >= 255:
+                    self.get_parsing_error(
+                        token=self.peek(), message="Can't have more than 255 arguments."
+                    )
+                arguments.append(self.expression())
+                if not self.match(tokens_types=[TokenType.COMMA]):
+                    break
+        paren = self.consume(
+            token_type=TokenType.RIGHT_PAREN, message="Expect ')' after arguments."
+        )
+        return Call(callee=callee, paren=paren, arguments=arguments)
 
     def primary(self) -> Expr:
         if self.match(tokens_types=[TokenType.FALSE]):

@@ -1,3 +1,5 @@
+import time
+from abc import ABC, abstractmethod
 from enum import Enum, auto
 
 from multimethod import multimethod
@@ -20,6 +22,7 @@ from src.expr import (
     Variable,
     VisitorExpr,
 )
+
 from src.run_time_exception import RunTimeException
 from src.stmt import (
     Block,
@@ -45,6 +48,16 @@ class VariableType(Enum):
 
 class BreakException(RuntimeError):
     pass
+
+
+class LoxCallable(ABC):
+    @abstractmethod
+    def call(self, interpreter: "Interpreter", arguments: list):
+        pass
+
+    @abstractmethod
+    def arity(self) -> int:
+        pass
 
 
 @multimethod
@@ -80,11 +93,28 @@ def check_same_type(operator: Token, left: str | int | float, right: str | int |
         )
 
 
+class Clock(LoxCallable):
+    def arity(self) -> int:
+        return 0
+
+    def call(self, interpreter: "Interpreter", arguments: list):
+        return time.time()
+
+    def __str__(self):
+        return "<nativ fm>"
+
+    def __repr__(self):
+        return "<nativ fm>"
+
+
 class Interpreter(VisitorExpr, VisitorStmt):
 
     def __init__(self):
         self.had_error = False
-        self.environment = Environment({})
+        self.globals = Environment({})
+        self.environment = self.globals
+
+        self.globals.define("clock", Clock())
 
     def run_time_error(self, error: RunTimeException):
         self.had_error = True
@@ -210,7 +240,18 @@ class Interpreter(VisitorExpr, VisitorStmt):
                 return None
 
     def visit_call_expr(self, expr: Call) -> T:
-        raise NotImplementedError
+        callee = self.evaluate(expr=expr.callee)
+        if not isinstance(callee, LoxCallable):
+            raise RunTimeException(
+                token=expr.paren, message="Can only call functions and classes."
+            )
+        if len(expr.arguments) != callee.arity():
+            raise RunTimeException(
+                token=expr.paren,
+                message=f"Expected {callee.arity} arguments but got {len(expr.arguments)}.",
+            )
+        arguments = [self.evaluate(argument) for argument in expr.arguments]
+        return callee.call(self, arguments)
 
     def visit_get_expr(self, expr: Get) -> T:
         raise NotImplementedError
