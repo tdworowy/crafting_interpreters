@@ -66,11 +66,12 @@ class LoxCallable(ABC):
 
 
 class LoxFunction(LoxCallable):
-    def __init__(self, declaration: Function):
+    def __init__(self, declaration: Function, closure: Environment):
         self.declaration = declaration
+        self.closure = closure
 
     def call(self, interpreter: "Interpreter", arguments: list) -> Token:
-        environment = Environment(values={}, enclosing=interpreter.globals)
+        environment = Environment(values={}, enclosing=self.closure)
         for param, argument in zip(self.declaration.params, arguments):
             environment.define(name=param.lexeme, value=argument)
         try:
@@ -185,7 +186,7 @@ class Interpreter(VisitorExpr, VisitorStmt):
         self.evaluate(stmt.expression)
 
     def visit_function_stmt(self, stmt: "Function") -> None:
-        function = LoxFunction(declaration=stmt)
+        function = LoxFunction(declaration=stmt, closure=self.environment)
         self.environment.define(name=stmt.name.lexeme, value=function)
 
     def visit_if_stmt(self, stmt: "If") -> None:

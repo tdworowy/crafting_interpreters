@@ -1,0 +1,8 @@
+fun fun1(x) {
+    var y = x + 1;
+    fun fun2() {
+        return y + 2;
+    }
+    return fun2();
+}
+print fun1(10);
