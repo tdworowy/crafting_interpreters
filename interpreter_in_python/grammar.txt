@@ -9,8 +9,9 @@ operator -> "==" | "!=" | "<" | "<=" | ">" | ">=" | "+" | "-" | "*" | "/;
 Precedence table:
 program -> statement* EOF;
 declaration -> funcDecl | varDecl | statement;
-statement -> exprStmt | forStmt | ifStmt | printStmt | whileStmt | block;
+statement -> exprStmt | forStmt | ifStmt | printStmt | returnStmt | whileStmt | block;
 forStmt -> "for" "(" (varDecl | exprStmr | ";") expression? ";" expression? ")" statement;
+returnStmt -> return expression? ";";
 whileStmt -> "while" "(" expression ")" statement;
 ifStmt -> "if" "(" expression ")" statement ("else" statement)?;
 funcDecl -> "fun" function;

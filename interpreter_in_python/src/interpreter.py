@@ -50,6 +50,11 @@ class BreakException(RuntimeError):
     pass
 
 
+class ReturnException(RunTimeException):
+    def __init__(self, token: Token, message):
+        super().__init__(token=token, message=message)
+
+
 class LoxCallable(ABC):
     @abstractmethod
     def call(self, interpreter: "Interpreter", arguments: list):
@@ -58,6 +63,31 @@ class LoxCallable(ABC):
     @abstractmethod
     def arity(self) -> int:
         pass
+
+
+class LoxFunction(LoxCallable):
+    def __init__(self, declaration: Function):
+        self.declaration = declaration
+
+    def call(self, interpreter: "Interpreter", arguments: list) -> Token:
+        environment = Environment(values={}, enclosing=interpreter.globals)
+        for param, argument in zip(self.declaration.params, arguments):
+            environment.define(name=param.lexeme, value=argument)
+        try:
+            interpreter.execute_block(
+                statements=self.declaration.body, environment=environment
+            )
+        except ReturnException as return_value:
+            return return_value.token
+
+    def arity(self) -> int:
+        return len(self.declaration.params)
+
+    def __str__(self):
+        return f"<fn {self.declaration.name.lexeme}>"
+
+    def __repr__(self):
+        return f"<fn {self.declaration.name.lexeme}>"
 
 
 @multimethod
@@ -111,7 +141,7 @@ class Interpreter(VisitorExpr, VisitorStmt):
 
     def __init__(self):
         self.had_error = False
-        self.globals = Environment({})
+        self.globals = Environment(values={})
         self.environment = self.globals
 
         self.globals.define("clock", Clock())
@@ -154,8 +184,9 @@ class Interpreter(VisitorExpr, VisitorStmt):
     def visit_expression_stmt(self, stmt: "Expression") -> None:
         self.evaluate(stmt.expression)
 
-    def visit_function_stmt(self, stmt: "Function") -> T:
-        raise NotImplementedError
+    def visit_function_stmt(self, stmt: "Function") -> None:
+        function = LoxFunction(declaration=stmt)
+        self.environment.define(name=stmt.name.lexeme, value=function)
 
     def visit_if_stmt(self, stmt: "If") -> None:
         if self.evaluate(expr=stmt.condition):
@@ -167,8 +198,11 @@ class Interpreter(VisitorExpr, VisitorStmt):
         value = self.evaluate(stmt.expression)
         print(value)
 
-    def visit_return_stmt(self, stmt: "Return") -> T:
-        raise NotImplementedError
+    def visit_return_stmt(self, stmt: "Return") -> None:
+        value = None
+        if stmt.value is not None:
+            value = self.evaluate(expr=stmt.value)
+        raise ReturnException(token=value, message=f"return: {value}")
 
     def visit_var_stmt(self, stmt: "Var") -> None:
         value = VariableType.UNINITIALIZED

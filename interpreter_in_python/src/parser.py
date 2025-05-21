@@ -9,7 +9,18 @@ from src.expr import (
     Logical,
     Call,
 )
-from src.stmt import Block, Expression, Print, Stmt, Var, If, While, Break, Function
+from src.stmt import (
+    Block,
+    Expression,
+    Print,
+    Stmt,
+    Var,
+    If,
+    While,
+    Break,
+    Function,
+    Return,
+)
 from src.token_ import Token, TokenType
 
 
@@ -118,6 +129,8 @@ class Parser:
             return self.if_statement()
         if self.match(tokens_types=[TokenType.PRINT]):
             return self.print_statement()
+        if self.match(tokens_types=[TokenType.RETURN]):
+            return self.return_statement()
         if self.match(tokens_types=[TokenType.WHILE]):
             return self.while_statement()
         if self.match(tokens_types=[TokenType.BREAK]):
@@ -184,6 +197,16 @@ class Parser:
         value = self.expression()
         self.consume(token_type=TokenType.SEMICOLON, message="Expect ';' after value.")
         return Print(expression=value)
+
+    def return_statement(self) -> Stmt:
+        keword = self.previous()
+        value = None
+        if not self.check(token_type=TokenType.SEMICOLON):
+            value = self.expression()
+        self.consume(
+            token_type=TokenType.SEMICOLON, message="Expect ';' after return value."
+        )
+        return Return(keyword=keword, value=value)
 
     def while_statement(self) -> Stmt:
         self.consume(
