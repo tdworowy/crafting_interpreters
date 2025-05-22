@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TypeVar
 
-from src.expr import Expr, Variable
+from src.expr import Expr, Variable, FunctionExpr
 from src.token_ import Token
 
 T = TypeVar("T")
@@ -26,7 +26,7 @@ class VisitorStmt(ABC):
         pass
 
     @abstractmethod
-    def visit_function_stmt(self, stmt: "Function") -> T:
+    def visit_function_stmt(self, stmt: "FunctionStmt") -> T:
         pass
 
     @abstractmethod
@@ -81,10 +81,9 @@ class Expression(Stmt):
 
 
 @dataclass
-class Function(Stmt):
+class FunctionStmt(Stmt):
     name: Token
-    params: list[Token]
-    body: list[Stmt]
+    function: FunctionExpr
 
     def accept(self, visitor: VisitorStmt) -> T:
         return visitor.visit_function_stmt(self)
@@ -94,7 +93,7 @@ class Function(Stmt):
 class Class(Stmt):
     name: Token
     supper_class: Variable
-    methods = list[Function]
+    methods = list[FunctionStmt]
 
     def accept(self, visitor: VisitorStmt) -> T:
         return visitor.visit_class_stmt(self)

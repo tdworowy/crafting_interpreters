@@ -8,6 +8,7 @@ from src.expr import (
     Variable,
     Logical,
     Call,
+    FunctionExpr,
 )
 from src.stmt import (
     Block,
@@ -18,7 +19,7 @@ from src.stmt import (
     If,
     While,
     Break,
-    Function,
+    FunctionStmt,
     Return,
 )
 from src.token_ import Token, TokenType
@@ -66,7 +67,10 @@ class Parser:
 
     def declaration(self) -> Stmt:
         try:
-            if self.match(tokens_types=[TokenType.FUN]):
+            if self.check(token_type=TokenType.FUN) and self.check_next(
+                token_type=TokenType.IDENTIFIER
+            ):
+                self.consume(token_type=TokenType.FUN, message="")
                 return self.function("function")
             if self.match(tokens_types=[TokenType.VAR]):
                 return self.var_declaration()
@@ -79,6 +83,9 @@ class Parser:
         name = self.consume(
             token_type=TokenType.IDENTIFIER, message=f"Expect {kind} name."
         )
+        return FunctionStmt(name=name, function=self.function_body(kind=kind))
+
+    def function_body(self, kind: str) -> FunctionExpr:
         self.consume(
             token_type=TokenType.LEFT_PAREN, message=f"fExpect '(' after {kind} name."
         )
@@ -106,7 +113,7 @@ class Parser:
             message=f"Expect '\u007b' before {kind} body.",
         )
         body = self.block()
-        return Function(name=name, params=parameters, body=body)
+        return FunctionExpr(params=parameters, body=body)
 
     def var_declaration(self) -> Stmt:
         name = self.consume(
@@ -373,6 +380,8 @@ class Parser:
             return Literal(value=self.previous().literal)
         if self.match(tokens_types=[TokenType.IDENTIFIER]):
             return Variable(name=self.previous())
+        if self.match(tokens_types=[TokenType.FUN]):
+            return self.function_body(kind="function")
         if self.match(
             tokens_types=[
                 TokenType.LEFT_PAREN,
@@ -401,6 +410,13 @@ class Parser:
         if self.is_at_end():
             return False
         return self.peek().token_type == token_type
+
+    def check_next(self, token_type: TokenType) -> bool:
+        if self.is_at_end():
+            return False
+        if self.tokens[self.current + 1].token_type == TokenType.EOF:
+            return False
+        return self.tokens[self.current + 1].token_type == token_type
 
     def advance(self) -> Token:
         if not self.is_at_end():

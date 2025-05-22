@@ -1,6 +1,7 @@
 import time
 from abc import ABC, abstractmethod
 from enum import Enum, auto
+from typing import Optional
 
 from multimethod import multimethod
 
@@ -21,6 +22,7 @@ from src.expr import (
     Unary,
     Variable,
     VisitorExpr,
+    FunctionExpr,
 )
 
 from src.run_time_exception import RunTimeException
@@ -28,7 +30,7 @@ from src.stmt import (
     Block,
     Class,
     Expression,
-    Function,
+    FunctionStmt,
     If,
     Print,
     Return,
@@ -66,7 +68,10 @@ class LoxCallable(ABC):
 
 
 class LoxFunction(LoxCallable):
-    def __init__(self, declaration: Function, closure: Environment):
+    def __init__(
+        self, name: Optional[str], declaration: FunctionExpr, closure: Environment
+    ):
+        self.name = name
         self.declaration = declaration
         self.closure = closure
 
@@ -85,10 +90,14 @@ class LoxFunction(LoxCallable):
         return len(self.declaration.params)
 
     def __str__(self):
-        return f"<fn {self.declaration.name.lexeme}>"
+        if not self.name:
+            return "<fn>"
+        return f"<fn {self.name}>"
 
     def __repr__(self):
-        return f"<fn {self.declaration.name.lexeme}>"
+        if not self.name:
+            return "<fn>"
+        return f"<fn {self.name}>"
 
 
 @multimethod
@@ -185,9 +194,15 @@ class Interpreter(VisitorExpr, VisitorStmt):
     def visit_expression_stmt(self, stmt: "Expression") -> None:
         self.evaluate(stmt.expression)
 
-    def visit_function_stmt(self, stmt: "Function") -> None:
-        function = LoxFunction(declaration=stmt, closure=self.environment)
-        self.environment.define(name=stmt.name.lexeme, value=function)
+    def visit_function_stmt(self, stmt: "FunctionStmt") -> None:
+        fn_name = stmt.name.lexeme
+        function = LoxFunction(
+            name=fn_name, declaration=stmt.function, closure=self.environment
+        )
+        self.environment.define(name=fn_name, value=function)
+
+    def visit_function_expr(self, expr: "FunctionExpr") -> LoxFunction:
+        return LoxFunction(name=None, declaration=expr, closure=self.environment)
 
     def visit_if_stmt(self, stmt: "If") -> None:
         if self.evaluate(expr=stmt.condition):

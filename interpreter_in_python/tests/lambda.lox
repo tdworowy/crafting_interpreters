@@ -1,0 +1,8 @@
+fun run(fn) {
+    var x = "lambda works";
+    fn(x);
+}
+
+run(fun (x) {
+    print x;
+});

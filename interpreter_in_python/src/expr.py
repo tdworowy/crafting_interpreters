@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import TypeVar, Any
 
 from src.token_ import Token
 
@@ -54,6 +54,9 @@ class VisitorExpr(ABC):
 
     @abstractmethod
     def visit_variable_expr(self, expr: "Variable") -> T:
+        pass
+
+    def visit_function_expr(self, expr: "FunctionExpr"):
         pass
 
 
@@ -170,3 +173,12 @@ class Variable(Expr):
 
     def accept(self, visitor: VisitorExpr) -> T:
         return visitor.visit_variable_expr(self)
+
+
+@dataclass
+class FunctionExpr(Expr):
+    params: list[Token]
+    body: list[Any]
+
+    def accept(self, visitor: VisitorExpr) -> T:
+        return visitor.visit_function_expr(self)

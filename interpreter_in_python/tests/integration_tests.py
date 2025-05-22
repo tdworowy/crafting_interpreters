@@ -41,3 +41,11 @@ def test_break(capsys: pytest.CaptureFixture[str]):
         Lox().run(source=source, repl=True)
         captured = capsys.readouterr()
         assert captured.out == "After loop\n"
+
+
+def test_lambda(capsys: pytest.CaptureFixture[str]):
+    with open("lambda.lox.") as f:
+        source = f.read()
+        Lox().run(source=source, repl=True)
+        captured = capsys.readouterr()
+        assert captured.out == "lambda works\n"
