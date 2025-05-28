@@ -23,7 +23,10 @@ class Environment:
                 token=name, message=f"Undefined variable: [{name.lexeme}]"
             )
 
-    def get(self, name: Token):
+    def assign_at(self, distance: int, name: Token, value: Any):
+        self.ancestor(distance=distance).values[name.lexeme] = value
+
+    def get(self, name: Token) -> Any:
         if name.lexeme in self.values:
             return self.values[name.lexeme]
         elif self.enclosing:
@@ -32,3 +35,14 @@ class Environment:
             raise RunTimeException(
                 token=name, message=f"Undefined variable: [{name.lexeme}]"
             )
+
+    def get_at(self, distance: int, name: str):
+        return self.ancestor(distance=distance).values[name]
+
+    def ancestor(self, distance: int) -> "Environment":
+        environment = self
+        for i in range(distance):
+            environment = environment.enclosing
+
+        return environment
+        # TODO need fix ?

@@ -152,6 +152,7 @@ class Interpreter(VisitorExpr, VisitorStmt):
     def __init__(self):
         self.had_error = False
         self.globals = Environment(values={})
+        self.locals = {}
         self.environment = self.globals
 
         self.globals.define("clock", Clock())
@@ -244,7 +245,11 @@ class Interpreter(VisitorExpr, VisitorStmt):
 
     def visit_assign_expr(self, expr: Assign) -> None:
         value = self.evaluate(expr=expr.value)
-        self.environment.assign(name=expr.name, value=value)
+        distance = self.locals.get(id(expr), None)
+        if distance:
+            self.environment.assign_at(distance=distance, name=expr.name, value=value)
+        else:
+            self.globals.assign(name=expr.name, value=value)
         return value
 
     def visit_binary_expr(self, expr: Binary) -> T:
@@ -343,12 +348,14 @@ class Interpreter(VisitorExpr, VisitorStmt):
                 return None
 
     def visit_variable_expr(self, expr: Variable) -> T:
-        value = self.environment.get(name=expr.name)
-        if value == VariableType.UNINITIALIZED:
-            raise RunTimeException(
-                token=expr.name, message="Variable must be initialized before use."
-            )
-        return value
+        return self.look_up_variable(name=expr.name, expr=expr)
+
+    def look_up_variable(self, name: Token, expr: Expr):
+        distance = self.locals.get(id(expr), None)
+        if distance:
+            return self.environment.get_at(distance=distance, name=name.lexeme)
+        else:
+            return self.globals.get(name=name)
 
     def execute_block(self, statements: list[Stmt], environment: Environment):
         previous = self.environment
@@ -358,3 +365,6 @@ class Interpreter(VisitorExpr, VisitorStmt):
                 self.execute(stmt=statement)
         finally:
             self.environment = previous
+
+    def resolve(self, expr: Expr, depth: int):
+        self.locals[id(expr)] = depth

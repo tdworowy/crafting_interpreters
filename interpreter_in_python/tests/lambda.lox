@@ -3,6 +3,6 @@ fun run(fn) {
     fn(x);
 }
 
-run(fun (x) {
+run(fun(x) {
     print x;
 });
