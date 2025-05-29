@@ -1,0 +1,11 @@
+fun fib2(count) {
+    var a = 0;
+    var temp;
+
+    for (var b = 1; a < count; b = temp + b) {
+        print a;
+        temp = a;
+        a = b;
+    }
+}
+fib2(100000);

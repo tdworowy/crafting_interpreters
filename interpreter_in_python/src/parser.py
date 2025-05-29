@@ -179,7 +179,7 @@ class Parser:
                 condition = Literal(value=True)
             body = While(condition=condition, body=body)
             if initializer:
-                body = Block([initializer, body])
+                body = Block(statements=[initializer, body])
             return body
         finally:
             self.loop_depth -= 1

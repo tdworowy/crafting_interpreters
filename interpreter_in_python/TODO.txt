@@ -1,1 +1,1 @@
-Lot of staff don't work after adding Resolver
+after adding Resolver for loop and lambdas stop working.

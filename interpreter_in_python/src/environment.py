@@ -45,4 +45,3 @@ class Environment:
             environment = environment.enclosing
 
         return environment
-        # TODO need fix ?
