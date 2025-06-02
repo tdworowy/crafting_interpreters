@@ -2,7 +2,7 @@ from src.lox import Lox
 
 
 def main():
-    with open("../fib3.lox") as f:
+    with open("../while_block.lox") as f:
         source = f.read()
         Lox().run(source=source, repl=False)
 

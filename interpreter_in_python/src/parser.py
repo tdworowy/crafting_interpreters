@@ -149,8 +149,8 @@ class Parser:
         return self.expression_statement()
 
     def for_statement(self) -> Stmt:
+        # TODO it is different than analogical while (should be ?)
         self.consume(token_type=TokenType.LEFT_PAREN, message="Expect '(' after 'for'.")
-        initializer = None
         if self.match(tokens_types=[TokenType.SEMICOLON]):
             initializer = None
         elif self.match(tokens_types=[TokenType.VAR]):
