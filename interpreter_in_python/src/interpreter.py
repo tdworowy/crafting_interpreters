@@ -1,7 +1,5 @@
 import time
-from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Optional
 
 from multimethod import multimethod
 
@@ -24,6 +22,11 @@ from src.expr import (
     VisitorExpr,
     FunctionExpr,
 )
+from src.lox_callable import LoxCallable
+from src.lox_class import LoxClass
+from src.lox_functionr import LoxFunction
+from src.lox_instance import LoxInstance
+from src.return_exception import ReturnException
 
 from src.run_time_exception import RunTimeException
 from src.stmt import (
@@ -50,54 +53,6 @@ class VariableType(Enum):
 
 class BreakException(RuntimeError):
     pass
-
-
-class ReturnException(RunTimeException):
-    def __init__(self, token: Token, message):
-        super().__init__(token=token, message=message)
-
-
-class LoxCallable(ABC):
-    @abstractmethod
-    def call(self, interpreter: "Interpreter", arguments: list):
-        pass
-
-    @abstractmethod
-    def arity(self) -> int:
-        pass
-
-
-class LoxFunction(LoxCallable):
-    def __init__(
-        self, name: Optional[str], declaration: FunctionExpr, closure: Environment
-    ):
-        self.name = name
-        self.declaration = declaration
-        self.closure = closure
-
-    def call(self, interpreter: "Interpreter", arguments: list) -> Token:
-        environment = Environment(values={}, enclosing=self.closure)
-        for param, argument in zip(self.declaration.params, arguments):
-            environment.define(name=param.lexeme, value=argument)
-        try:
-            interpreter.execute_block(
-                statements=self.declaration.body, environment=environment
-            )
-        except ReturnException as return_value:
-            return return_value.token
-
-    def arity(self) -> int:
-        return len(self.declaration.params)
-
-    def __str__(self):
-        if not self.name:
-            return "<fn>"
-        return f"<fn {self.name}>"
-
-    def __repr__(self):
-        if not self.name:
-            return "<fn>"
-        return f"<fn {self.name}>"
 
 
 @multimethod
@@ -189,8 +144,10 @@ class Interpreter(VisitorExpr, VisitorStmt):
     def execute(self, stmt: Stmt) -> T:
         return stmt.accept(self)
 
-    def visit_class_stmt(self, stmt: "Class") -> T:
-        raise NotImplementedError
+    def visit_class_stmt(self, stmt: "Class") -> None:
+        self.environment.define(name=stmt.name.lexeme, value=None)
+        klass = LoxClass(name=stmt.name.lexeme)
+        self.environment.assign(name=stmt.name, value=klass)
 
     def visit_expression_stmt(self, stmt: "Expression") -> None:
         self.evaluate(stmt.expression)
@@ -309,7 +266,13 @@ class Interpreter(VisitorExpr, VisitorStmt):
         return callee.call(self, arguments)
 
     def visit_get_expr(self, expr: Get) -> T:
-        raise NotImplementedError
+        object = self.evaluate(expr=expr.object)
+        if isinstance(object, LoxInstance):
+            return object.get(name=expr.name)
+        else:
+            raise RunTimeException(
+                token=expr.name, message="Only instances have properties."
+            )
 
     def visit_grouping_expr(self, expr: Grouping) -> T:
         return self.evaluate(expr=expr.expression)
@@ -328,7 +291,14 @@ class Interpreter(VisitorExpr, VisitorStmt):
         return self.evaluate(expr=expr.right)
 
     def visit_set_expr(self, expr: Set) -> T:
-        raise NotImplementedError
+        object = self.evaluate(expr=expr.object)
+        if not isinstance(object, LoxInstance):
+            raise RunTimeException(
+                token=expr.name, message="Only instance have fields."
+            )
+        value = self.evaluate(expr=expr.value)
+        object.set(name=expr.name, value=value)
+        return value
 
     def visit_super_expr(self, expr: Super) -> T:
         raise NotImplementedError

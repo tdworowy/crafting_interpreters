@@ -1,0 +1,10 @@
+class TestClass {
+    doStaff() {
+        return "Done";
+    }
+}
+print TestClass;
+var testObject = TestClass();
+testObject.test = "test";
+print testObject;
+print testObject.test;

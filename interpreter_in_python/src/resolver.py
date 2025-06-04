@@ -50,17 +50,18 @@ class Resolver(VisitorExpr, VisitorStmt):
 
     def visit_block_stmt(self, stmt: "Block") -> None:
         self.begin_scope()
-        self.resolve(stmt.statements)
+        self.resolve(to_resolve=stmt.statements)
         self.end_scope()
 
     def visit_break_stmt(self, stmt: "Break") -> T:
         pass
 
-    def visit_class_stmt(self, stmt: "Class") -> T:
-        pass
+    def visit_class_stmt(self, stmt: "Class") -> None:
+        self.declare(name=stmt.name)
+        self.define(name=stmt.name)
 
     def visit_expression_stmt(self, stmt: "Expression") -> None:
-        self.resolve(stmt.expression)
+        self.resolve(to_resolve=stmt.expression)
 
     def visit_function_stmt(self, stmt: "FunctionStmt") -> None:
         self.declare(name=stmt.name)
@@ -76,18 +77,18 @@ class Resolver(VisitorExpr, VisitorStmt):
         for param in function_stmt.function.params:
             self.declare(name=param)
             self.define(name=param)
-        self.resolve(function_stmt.function.body)
+        self.resolve(to_resolve=function_stmt.function.body)
         self.end_scope()
         self.current_function = enclosing_function
 
     def visit_if_stmt(self, stmt: "If") -> None:
-        self.resolve(stmt.condition)
-        self.resolve(stmt.then_branch)
+        self.resolve(to_resolve=stmt.condition)
+        self.resolve(to_resolve=stmt.then_branch)
         if stmt.else_branch:
-            self.resolve(stmt.else_branch)
+            self.resolve(to_resolve=stmt.else_branch)
 
     def visit_print_stmt(self, stmt: "Print") -> None:
-        self.resolve(stmt.expression)
+        self.resolve(to_resolve=stmt.expression)
 
     def visit_return_stmt(self, stmt: "Return") -> None:
         if self.current_function == FunctionType.NONE:
@@ -95,12 +96,12 @@ class Resolver(VisitorExpr, VisitorStmt):
             self.had_error = True
             return
         if stmt.value:
-            self.resolve(stmt.value)
+            self.resolve(to_resolve=stmt.value)
 
     def visit_var_stmt(self, stmt: "Var") -> None:
         self.declare(name=stmt.name)
         if stmt.initializer is not None:
-            self.resolve(stmt.initializer)
+            self.resolve(to_resolve=stmt.initializer)
         self.define(name=stmt.name)
 
     def declare(self, name: Token):
@@ -118,8 +119,8 @@ class Resolver(VisitorExpr, VisitorStmt):
         self.scopes[-1][name.lexeme] = True
 
     def visit_while_stmt(self, stmt: "While") -> None:
-        self.resolve(stmt.condition)
-        self.resolve(stmt.body)
+        self.resolve(to_resolve=stmt.condition)
+        self.resolve(to_resolve=stmt.body)
 
     def visit_variable_expr(self, expr: "Variable") -> None:
         if (
@@ -142,38 +143,39 @@ class Resolver(VisitorExpr, VisitorStmt):
         pass
 
     def visit_unary_expr(self, expr: "Unary") -> None:
-        self.resolve(expr.right)
+        self.resolve(to_resolve=expr.right)
 
     def visit_super_expr(self, expr: "Super") -> T:
         pass
 
-    def visit_set_expr(self, expr: "Set") -> T:
-        pass
+    def visit_set_expr(self, expr: "Set") -> None:
+        self.resolve(to_resolve=expr.value)
+        self.resolve(to_resolve=expr.object)
 
     def visit_logical_expr(self, expr: "Logical") -> None:
-        self.resolve(expr.left)
-        self.resolve(expr.right)
+        self.resolve(to_resolve=expr.left)
+        self.resolve(to_resolve=expr.right)
 
     def visit_literal_expr(self, expr: "Literal") -> None:
         return
 
     def visit_grouping_expr(self, expr: "Grouping") -> None:
-        self.resolve(expr.expression)
+        self.resolve(to_resolve=expr.expression)
 
-    def visit_get_expr(self, expr: "Get") -> T:
-        pass
+    def visit_get_expr(self, expr: "Get") -> None:
+        self.resolve(to_resolve=expr.object)
 
     def visit_call_expr(self, expr: "Call") -> None:
-        self.resolve(expr.callee)
+        self.resolve(to_resolve=expr.callee)
         for argument in expr.arguments:
-            self.resolve(argument)
+            self.resolve(to_resolve=argument)
 
     def visit_binary_expr(self, expr: "Binary") -> None:
-        self.resolve(expr.left)
-        self.resolve(expr.right)
+        self.resolve(to_resolve=expr.left)
+        self.resolve(to_resolve=expr.right)
 
     def visit_assign_expr(self, expr: "Assign") -> None:
-        self.resolve(expr.value)
+        self.resolve(to_resolve=expr.value)
         self.resolve_local(expr=expr, name=expr.name)
 
     def resolve(self, to_resolve: list[Stmt] | Stmt | Expr):

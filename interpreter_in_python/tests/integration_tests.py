@@ -36,7 +36,7 @@ def test_fibonacci(file_name: str, capsys: pytest.CaptureFixture[str]):
 
 
 def test_break(capsys: pytest.CaptureFixture[str]):
-    with open("break_test.lox") as f:
+    with open("lox_scripts/break_test.lox") as f:
         source = f.read()
         Lox().run(source=source, repl=True)
         captured = capsys.readouterr()
@@ -44,8 +44,16 @@ def test_break(capsys: pytest.CaptureFixture[str]):
 
 
 def test_lambda(capsys: pytest.CaptureFixture[str]):
-    with open("lambda.lox.") as f:
+    with open("lox_scripts/lambda.lox.") as f:
         source = f.read()
         Lox().run(source=source, repl=True)
         captured = capsys.readouterr()
         assert captured.out == "lambda works\n"
+
+
+def test_class(capsys: pytest.CaptureFixture[str]):
+    with open("lox_scripts/class1.lox.") as f:
+        source = f.read()
+        Lox().run(source=source, repl=True)
+        captured = capsys.readouterr()
+        assert captured.out == "instance property works\n"

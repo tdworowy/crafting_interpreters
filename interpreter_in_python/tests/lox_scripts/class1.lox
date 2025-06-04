@@ -1,0 +1,5 @@
+class TestClass {
+}
+var testObject = TestClass();
+testObject.test = "instance property works";
+print testObject.test;

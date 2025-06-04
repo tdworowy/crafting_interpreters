@@ -9,6 +9,8 @@ from src.expr import (
     Logical,
     Call,
     FunctionExpr,
+    Get,
+    Set,
 )
 from src.stmt import (
     Block,
@@ -21,6 +23,7 @@ from src.stmt import (
     Break,
     FunctionStmt,
     Return,
+    Class,
 )
 from src.token_ import Token, TokenType
 
@@ -67,6 +70,8 @@ class Parser:
 
     def declaration(self) -> Stmt:
         try:
+            if self.match(tokens_types=[TokenType.CLASS]):
+                return self.class_declaration()
             if self.check(token_type=TokenType.FUN) and self.check_next(
                 token_type=TokenType.IDENTIFIER
             ):
@@ -128,6 +133,22 @@ class Parser:
             message="Expect ';' after variable declaration.",
         )
         return Var(name=name, initializer=initializer)
+
+    def class_declaration(self):
+        name = self.consume(
+            token_type=TokenType.IDENTIFIER, message="Expect class name."
+        )
+        self.consume(
+            token_type=TokenType.LEFT_BRACE, message="Expect '{' before class body."
+        )
+        methods = []
+        while not self.check(token_type=TokenType.RIGHT_BRACE) and not self.is_at_end():
+            methods.append(self.function("method"))
+
+        self.consume(
+            token_type=TokenType.RIGHT_BRACE, message="Expect '}' after class body."
+        )
+        return Class(name=name, supper_class=None, methods=methods)
 
     def statement(self) -> Stmt:
         if self.match(tokens_types=[TokenType.FOR]):
@@ -270,10 +291,13 @@ class Parser:
             if isinstance(expr, Variable):
                 name = expr.name
                 return Assign(name=name, value=value)
-            self.get_parsing_error(
-                token=equals,
-                message=f"Invalid assignment target.",
-            )
+            elif isinstance(expr, Get):
+                return Set(object=expr.object, name=expr.name, value=value)
+            else:
+                self.get_parsing_error(
+                    token=equals,
+                    message=f"Invalid assignment target.",
+                )
         else:
             return expr
 
@@ -349,6 +373,12 @@ class Parser:
         while True:
             if self.match(tokens_types=[TokenType.LEFT_PAREN]):
                 expr = self.finish_call(callee=expr)
+            elif self.match(tokens_types=[TokenType.DOT]):
+                name = self.consume(
+                    token_type=TokenType.IDENTIFIER,
+                    message="Expect property name after '.'.",
+                )
+                expr = Get(object=expr, name=name)
             else:
                 break
         return expr
