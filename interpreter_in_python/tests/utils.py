@@ -1,7 +1,7 @@
 from typing import Any
 
 
-def compare_ast(node1: Any, node2: Any, ignore_types: set = None) -> bool:
+def compare_ast(node1: Any, node2: Any, ignore_types: set | None = None) -> bool:
     if ignore_types is None:
         ignore_types = set()
 

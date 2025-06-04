@@ -1,3 +1,5 @@
+from typing import Any
+
 from src.expr import (
     Assign,
     Binary,
@@ -76,7 +78,7 @@ class AstPrinter(VisitorExpr):
         result += ")"
         return result
 
-    def transform(self, parts: tuple[any, ...]):
+    def transform(self, parts: tuple[Any, ...]):
         result = ""
         for part in parts:
             result += " "

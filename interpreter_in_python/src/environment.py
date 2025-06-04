@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 
 from src.run_time_exception import RunTimeException
 from src.token_ import Token
@@ -8,7 +8,7 @@ from src.token_ import Token
 @dataclass
 class Environment:
     values: dict[str, Any]
-    enclosing: "Environment" = None
+    enclosing: Optional["Environment"] = None
 
     def define(self, name: str, value: Any):
         self.values[name] = value
