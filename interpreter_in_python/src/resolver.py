@@ -123,10 +123,9 @@ class Resolver(VisitorExpr, VisitorStmt):
         self.resolve(to_resolve=stmt.body)
 
     def visit_variable_expr(self, expr: "Variable") -> None:
-        if (
-            len(self.scopes) > 0
-            and self.scopes[-1].get(expr.name.lexeme, None) is False
-        ):
+        if len(self.scopes) > 0 and not self.scopes[-1].get(
+            expr.name.lexeme, None
+        ):  # TODO test it
             self.had_error = True
             print("Can't read local variable in its own initializer")
             return
