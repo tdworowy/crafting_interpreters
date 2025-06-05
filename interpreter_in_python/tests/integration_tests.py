@@ -26,7 +26,9 @@ def expected_data() -> str:
     return "\n".join([f"{str(fib(i))}.0" for i in range(26)]) + "\n"
 
 
-@pytest.mark.parametrize("file_name", ["fib.lox", "fib_function.lox"])
+@pytest.mark.parametrize(
+    "file_name", ["lox_scripts/fib.lox", "lox_scripts/fib_function.lox"]
+)
 def test_fibonacci(file_name: str, capsys: pytest.CaptureFixture[str]):
     with open(file_name) as f:
         source = f.read()

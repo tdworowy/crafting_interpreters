@@ -105,7 +105,7 @@ class Resolver(VisitorExpr, VisitorStmt):
         self.define(name=stmt.name)
 
     def declare(self, name: Token):
-        if len(self.scopes) == 0:
+        if not self.scopes:
             return
         if name in self.scopes[-1].keys():
             print("Already a variable with this name is this scope.")
@@ -114,7 +114,7 @@ class Resolver(VisitorExpr, VisitorStmt):
         self.scopes[-1][name.lexeme] = False
 
     def define(self, name: Token):
-        if len(self.scopes) == 0:
+        if not self.scopes:
             return
         self.scopes[-1][name.lexeme] = True
 
@@ -123,7 +123,7 @@ class Resolver(VisitorExpr, VisitorStmt):
         self.resolve(to_resolve=stmt.body)
 
     def visit_variable_expr(self, expr: "Variable") -> None:
-        if len(self.scopes) > 0 and not self.scopes[-1].get(
+        if self.scopes and not self.scopes[-1].get(
             expr.name.lexeme, None
         ):  # TODO test it
             self.had_error = True
