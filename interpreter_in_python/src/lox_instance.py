@@ -13,10 +13,12 @@ class LoxInstance:
     def get(self, name: Token) -> Any:
         if name.lexeme in self.fields.keys():
             return self.fields[name.lexeme]
-        else:
-            raise ReturnException(
-                token=name, message=f"Undefined property {name.lexeme}."
-            )
+
+        method = self.klass.find_method(name=name.lexeme)
+        if method:
+            return method
+
+        raise ReturnException(token=name, message=f"Undefined property {name.lexeme}.")
 
     def set(self, name: Token, value: Any):
         self.fields[name.lexeme] = value

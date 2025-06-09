@@ -4,16 +4,24 @@ from src.environment import Environment
 from src.expr import FunctionExpr
 from src.return_exception import ReturnException
 from src.lox_callable import LoxCallable
+from src.stmt import FunctionStmt
 from src.token_ import Token
 
 
 class LoxFunction(LoxCallable):
     def __init__(
-        self, name: Optional[str], declaration: FunctionExpr, closure: Environment
+        self,
+        name: Optional[str],
+        declaration: FunctionExpr | FunctionStmt,
+        closure: Environment,
     ):
         self.name = name
-        self.declaration = declaration
         self.closure = closure
+        match declaration:
+            case FunctionExpr():
+                self.declaration = declaration
+            case FunctionStmt():
+                self.declaration = declaration.function
 
     def call(self, interpreter: "Interpreter", arguments: list) -> Token:
         environment = Environment(values={}, enclosing=self.closure)

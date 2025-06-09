@@ -53,9 +53,17 @@ def test_lambda(capsys: pytest.CaptureFixture[str]):
         assert captured.out == "lambda works\n"
 
 
-def test_class(capsys: pytest.CaptureFixture[str]):
+def test_class1(capsys: pytest.CaptureFixture[str]):
     with open("lox_scripts/class1.lox.") as f:
         source = f.read()
         Lox().run(source=source, repl=True)
         captured = capsys.readouterr()
         assert captured.out == "instance property works\n"
+
+
+def test_class2(capsys: pytest.CaptureFixture[str]):
+    with open("lox_scripts/class2.lox.") as f:
+        source = f.read()
+        Lox().run(source=source, repl=True)
+        captured = capsys.readouterr()
+        assert captured.out == "Staff\n"

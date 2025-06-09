@@ -38,6 +38,7 @@ from src.token_ import Token
 class FunctionType(Enum):
     NONE = auto()
     FUNCTION = auto()
+    METHOD = auto()
 
 
 class Resolver(VisitorExpr, VisitorStmt):
@@ -59,6 +60,9 @@ class Resolver(VisitorExpr, VisitorStmt):
     def visit_class_stmt(self, stmt: "Class") -> None:
         self.declare(name=stmt.name)
         self.define(name=stmt.name)
+        for method in stmt.methods:
+            declaration = FunctionType.FUNCTION
+            self.resolve_function(function_stmt=method, function_type=declaration)
 
     def visit_expression_stmt(self, stmt: "Expression") -> None:
         self.resolve(to_resolve=stmt.expression)

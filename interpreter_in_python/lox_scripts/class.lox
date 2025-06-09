@@ -1,5 +1,6 @@
 class TestClass {
     doStaff() {
+        print "doing staff";
         return "Done";
     }
 }
@@ -8,3 +9,4 @@ var testObject = TestClass();
 testObject.test = "test";
 print testObject;
 print testObject.test;
+print testObject.doStaff();

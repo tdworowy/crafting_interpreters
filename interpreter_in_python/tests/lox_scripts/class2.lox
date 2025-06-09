@@ -1,0 +1,6 @@
+class TestClass {
+    printStaff() {
+    print "Staff";
+    }
+}
+TestClass().printStaff();

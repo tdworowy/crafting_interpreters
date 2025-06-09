@@ -24,7 +24,7 @@ from src.expr import (
 )
 from src.lox_callable import LoxCallable
 from src.lox_class import LoxClass
-from src.lox_functionr import LoxFunction
+from src.lox_function import LoxFunction
 from src.lox_instance import LoxInstance
 from src.return_exception import ReturnException
 
@@ -146,7 +146,13 @@ class Interpreter(VisitorExpr, VisitorStmt):
 
     def visit_class_stmt(self, stmt: "Class") -> None:
         self.environment.define(name=stmt.name.lexeme, value=None)
-        klass = LoxClass(name=stmt.name.lexeme)
+        methods = {}
+        for method in stmt.methods:
+            function = LoxFunction(
+                name=method.name.lexeme, declaration=method, closure=self.environment
+            )
+            methods[method.name.lexeme] = function
+        klass = LoxClass(name=stmt.name.lexeme, methods=methods)
         self.environment.assign(name=stmt.name, value=klass)
 
     def visit_expression_stmt(self, stmt: "Expression") -> None:
