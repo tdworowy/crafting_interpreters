@@ -22,48 +22,26 @@ def fib(n: int) -> int:
         return b
 
 
+@cache
 def expected_data() -> str:
     return "\n".join([f"{str(fib(i))}.0" for i in range(26)]) + "\n"
 
 
 @pytest.mark.parametrize(
-    "file_name", ["lox_scripts/fib.lox", "lox_scripts/fib_function.lox"]
+    "file_name,expected_result",
+    [
+        ("lox_scripts/break_test.lox", "After loop\n"),
+        ("lox_scripts/lambda.lox", "lambda works\n"),
+        ("lox_scripts/class1.lox", "instance property works\n"),
+        ("lox_scripts/class2.lox", "Staff\n"),
+        ("lox_scripts/class3.lox", "thisStaff\n"),
+        ("lox_scripts/fib.lox", expected_data()),
+        ("lox_scripts/fib_function.lox", expected_data()),
+    ],
 )
-def test_fibonacci(file_name: str, capsys: pytest.CaptureFixture[str]):
+def test_lox(file_name: str, expected_result: str, capsys: pytest.CaptureFixture[str]):
     with open(file_name) as f:
         source = f.read()
         Lox().run(source=source, repl=True)
         captured = capsys.readouterr()
-        assert captured.out == expected_data()
-
-
-def test_break(capsys: pytest.CaptureFixture[str]):
-    with open("lox_scripts/break_test.lox") as f:
-        source = f.read()
-        Lox().run(source=source, repl=True)
-        captured = capsys.readouterr()
-        assert captured.out == "After loop\n"
-
-
-def test_lambda(capsys: pytest.CaptureFixture[str]):
-    with open("lox_scripts/lambda.lox.") as f:
-        source = f.read()
-        Lox().run(source=source, repl=True)
-        captured = capsys.readouterr()
-        assert captured.out == "lambda works\n"
-
-
-def test_class1(capsys: pytest.CaptureFixture[str]):
-    with open("lox_scripts/class1.lox.") as f:
-        source = f.read()
-        Lox().run(source=source, repl=True)
-        captured = capsys.readouterr()
-        assert captured.out == "instance property works\n"
-
-
-def test_class2(capsys: pytest.CaptureFixture[str]):
-    with open("lox_scripts/class2.lox.") as f:
-        source = f.read()
-        Lox().run(source=source, repl=True)
-        captured = capsys.readouterr()
-        assert captured.out == "Staff\n"
+        assert captured.out == expected_result

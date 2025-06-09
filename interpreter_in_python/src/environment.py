@@ -1,14 +1,14 @@
-from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from src.run_time_exception import RunTimeException
 from src.token_ import Token
 
 
-@dataclass
 class Environment:
-    values: dict[str, Any]
-    enclosing: Optional["Environment"] = None
+
+    def __init__(self, enclosing: Optional["Environment"] = None):
+        self.values = {}
+        self.enclosing = enclosing
 
     def define(self, name: str, value: Any):
         self.values[name] = value

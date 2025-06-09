@@ -60,9 +60,12 @@ class Resolver(VisitorExpr, VisitorStmt):
     def visit_class_stmt(self, stmt: "Class") -> None:
         self.declare(name=stmt.name)
         self.define(name=stmt.name)
+        self.begin_scope()
+        self.scopes[-1]["this"] = True
         for method in stmt.methods:
             declaration = FunctionType.FUNCTION
             self.resolve_function(function_stmt=method, function_type=declaration)
+        self.end_scope()
 
     def visit_expression_stmt(self, stmt: "Expression") -> None:
         self.resolve(to_resolve=stmt.expression)
@@ -142,8 +145,8 @@ class Resolver(VisitorExpr, VisitorStmt):
                 self.interpreter.resolve(expr=expr, depth=len(self.scopes) - 1 - i)
             i -= 1
 
-    def visit_this_expr(self, expr: "This") -> T:
-        pass
+    def visit_this_expr(self, expr: "This") -> None:
+        self.resolve_local(expr=expr, name=expr.keyword)
 
     def visit_unary_expr(self, expr: "Unary") -> None:
         self.resolve(to_resolve=expr.right)

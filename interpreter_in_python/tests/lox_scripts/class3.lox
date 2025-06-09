@@ -1,0 +1,8 @@
+class TestClass {
+    printStaff() {
+    print this.staff
+    }
+}
+var obj = TestClass();
+obj.sfaff = "thisStaff";
+obj.printStaff();

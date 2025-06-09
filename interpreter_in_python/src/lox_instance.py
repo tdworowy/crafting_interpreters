@@ -16,7 +16,7 @@ class LoxInstance:
 
         method = self.klass.find_method(name=name.lexeme)
         if method:
-            return method
+            return method.bind(self)
 
         raise ReturnException(token=name, message=f"Undefined property {name.lexeme}.")
 

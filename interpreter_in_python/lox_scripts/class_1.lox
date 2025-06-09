@@ -1,0 +1,8 @@
+class TestClass {
+        doStaff() {
+            print this.test;
+    }
+}
+var obj = TestClass();
+obj.test = "Test";
+obj.doStaff();

@@ -2,6 +2,7 @@ from typing import Optional
 
 from src.environment import Environment
 from src.expr import FunctionExpr
+from src.lox_instance import LoxInstance
 from src.return_exception import ReturnException
 from src.lox_callable import LoxCallable
 from src.stmt import FunctionStmt
@@ -24,7 +25,7 @@ class LoxFunction(LoxCallable):
                 self.declaration = declaration.function
 
     def call(self, interpreter: "Interpreter", arguments: list) -> Token:
-        environment = Environment(values={}, enclosing=self.closure)
+        environment = Environment(enclosing=self.closure)
         for param, argument in zip(self.declaration.params, arguments):
             environment.define(name=param.lexeme, value=argument)
         try:
@@ -36,6 +37,13 @@ class LoxFunction(LoxCallable):
 
     def arity(self) -> int:
         return len(self.declaration.params)
+
+    def bind(self, instance: LoxInstance):
+        environment = Environment(enclosing=self.closure)
+        environment.define(name="this", value=instance)
+        return LoxFunction(
+            name="this", declaration=self.declaration, closure=environment
+        )
 
     def __str__(self):
         if not self.name:

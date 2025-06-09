@@ -11,6 +11,7 @@ from src.expr import (
     FunctionExpr,
     Get,
     Set,
+    This,
 )
 from src.stmt import (
     Block,
@@ -84,7 +85,7 @@ class Parser:
         except ParseError:
             self.synchronize()
 
-    def function(self, kind: str) -> Stmt:
+    def function(self, kind: str) -> FunctionStmt:
         name = self.consume(
             token_type=TokenType.IDENTIFIER, message=f"Expect {kind} name."
         )
@@ -92,7 +93,7 @@ class Parser:
 
     def function_body(self, kind: str) -> FunctionExpr:
         self.consume(
-            token_type=TokenType.LEFT_PAREN, message=f"fExpect '(' after {kind} name."
+            token_type=TokenType.LEFT_PAREN, message=f"Expect '(' after {kind} name."
         )
         parameters = []
         if not self.check(token_type=TokenType.RIGHT_PAREN):
@@ -141,7 +142,7 @@ class Parser:
         self.consume(
             token_type=TokenType.LEFT_BRACE, message="Expect '{' before class body."
         )
-        methods = []
+        methods: list[FunctionStmt] = []
         while not self.check(token_type=TokenType.RIGHT_BRACE) and not self.is_at_end():
             methods.append(self.function("method"))
 
@@ -408,6 +409,8 @@ class Parser:
             return Literal(value=None)
         if self.match(tokens_types=[TokenType.NUMBER, TokenType.STRING]):
             return Literal(value=self.previous().literal)
+        if self.match(tokens_types=[TokenType.THIS]):
+            return This(keyword=self.previous())
         if self.match(tokens_types=[TokenType.IDENTIFIER]):
             return Variable(name=self.previous())
         if self.match(tokens_types=[TokenType.FUN]):

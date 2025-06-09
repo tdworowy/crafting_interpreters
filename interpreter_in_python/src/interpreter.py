@@ -106,7 +106,7 @@ class Interpreter(VisitorExpr, VisitorStmt):
 
     def __init__(self):
         self.had_error = False
-        self.globals = Environment(values={})
+        self.globals = Environment()
         self.locals = {}
         self.environment = self.globals
 
@@ -200,7 +200,7 @@ class Interpreter(VisitorExpr, VisitorStmt):
     def visit_block_stmt(self, stmt: "Block") -> None:
         self.execute_block(
             statements=stmt.statements,
-            environment=Environment(enclosing=self.environment, values={}),
+            environment=Environment(enclosing=self.environment),
         )
 
     def visit_break_stmt(self, stmt: "Break") -> None:
@@ -310,7 +310,7 @@ class Interpreter(VisitorExpr, VisitorStmt):
         raise NotImplementedError
 
     def visit_this_expr(self, expr: This) -> T:
-        return "this"
+        return self.look_up_variable(name=expr.keyword, expr=expr)
 
     def visit_unary_expr(self, expr: Unary) -> T:
         right = self.evaluate(expr=expr.right)
