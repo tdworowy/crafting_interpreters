@@ -1,4 +1,5 @@
 after adding Resolver for loop and lambdas stop working.
-blocks don't work.
+blocks don't work. (can't access variable declared in block)
+function/methods arguments doesn't work
 while works, for doesn't - because it adds block.
 this doesn't work. <- fixed

@@ -1,0 +1,7 @@
+class TestClass {
+        doStaff(x) {
+           print x;
+    }
+}
+var obj = TestClass();
+obj.doStaff("test");
