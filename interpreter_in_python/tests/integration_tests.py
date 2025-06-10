@@ -27,17 +27,20 @@ def expected_data() -> str:
     return "\n".join([f"{str(fib(i))}.0" for i in range(26)]) + "\n"
 
 
+tests = [
+    ("lox_scripts/break_test.lox", "After loop\n"),
+    ("lox_scripts/lambda.lox", "lambda works\n"),
+    ("lox_scripts/class1.lox", "instance property works\n"),
+    ("lox_scripts/class2.lox", "Staff\n"),
+    ("lox_scripts/class3.lox", "thisStaff\n"),
+    ("lox_scripts/fib.lox", expected_data()),
+    ("lox_scripts/fib_function.lox", expected_data()),
+]
+
+
 @pytest.mark.parametrize(
     "file_name,expected_result",
-    [
-        ("lox_scripts/break_test.lox", "After loop\n"),
-        ("lox_scripts/lambda.lox", "lambda works\n"),
-        ("lox_scripts/class1.lox", "instance property works\n"),
-        ("lox_scripts/class2.lox", "Staff\n"),
-        ("lox_scripts/class3.lox", "thisStaff\n"),
-        ("lox_scripts/fib.lox", expected_data()),
-        ("lox_scripts/fib_function.lox", expected_data()),
-    ],
+    tests,
 )
 def test_lox(file_name: str, expected_result: str, capsys: pytest.CaptureFixture[str]):
     with open(file_name) as f:

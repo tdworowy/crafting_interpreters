@@ -1,6 +1,6 @@
 class TestClass {
         doStaff() {
-            print this.test;
+           print this.test;
     }
 }
 var obj = TestClass();

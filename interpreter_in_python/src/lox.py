@@ -26,7 +26,6 @@ class Lox:
 
         resolver = Resolver(interpreter=self.interpreter)
         resolver.resolve(to_interpret)
-
         if resolver.had_error:
             self.had_error = True
             return

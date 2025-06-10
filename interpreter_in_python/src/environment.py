@@ -14,7 +14,7 @@ class Environment:
         self.values[name] = value
 
     def assign(self, name: Token, value: Any):
-        if name.lexeme in self.values:
+        if name.lexeme in self.values.keys():
             self.values[name.lexeme] = value
         elif self.enclosing:
             self.enclosing.assign(name=name, value=value)
@@ -27,7 +27,7 @@ class Environment:
         self.ancestor(distance=distance).values[name.lexeme] = value
 
     def get(self, name: Token) -> Any:
-        if name.lexeme in self.values:
+        if name.lexeme in self.values.keys():
             return self.values[name.lexeme]
         elif self.enclosing:
             return self.enclosing.get(name)

@@ -130,11 +130,11 @@ class Resolver(VisitorExpr, VisitorStmt):
         self.resolve(to_resolve=stmt.body)
 
     def visit_variable_expr(self, expr: "Variable") -> None:
-        if self.scopes and not self.scopes[-1].get(
-            expr.name.lexeme, None
-        ):  # TODO test it
+        if self.scopes and self.scopes[-1].get(expr.name.lexeme) is False:
             self.had_error = True
-            print("Can't read local variable in its own initializer")
+            print(
+                f"Can't read local variable '{expr.name.lexeme}' in its own initializer"
+            )
             return
         self.resolve_local(expr=expr, name=expr.name)
 
@@ -142,7 +142,7 @@ class Resolver(VisitorExpr, VisitorStmt):
         i = len(self.scopes)
         for scope in reversed(self.scopes):
             if name.lexeme in scope.keys():
-                self.interpreter.resolve(expr=expr, depth=len(self.scopes) - 1 - i)
+                self.interpreter.resolve(expr=expr, depth=len(self.scopes) - i)
             i -= 1
 
     def visit_this_expr(self, expr: "This") -> None:

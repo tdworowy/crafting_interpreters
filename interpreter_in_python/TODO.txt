@@ -1,3 +1,4 @@
 after adding Resolver for loop and lambdas stop working.
-while works, for doesn't - become it adds block.
-this doesn't work.
+blocks don't work.
+while works, for doesn't - because it adds block.
+this doesn't work. <- fixed
