@@ -56,6 +56,7 @@ class VisitorExpr(ABC):
     def visit_variable_expr(self, expr: "Variable") -> T:
         pass
 
+    @abstractmethod
     def visit_function_expr(self, expr: "FunctionExpr"):
         pass
 

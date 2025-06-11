@@ -2,7 +2,7 @@ from src.lox import Lox
 
 
 def main():
-    with open("../tests/lox_scripts/lambda1.lox") as f:
+    with open("../tests/lox_scripts/lambda2.lox") as f:
         source = f.read()
         Lox().run(source=source, repl=False)
 

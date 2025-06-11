@@ -2,4 +2,4 @@ blocks don't work. (can't access variable declared in block) <- fixed
 function/methods arguments doesn't work <- fixed
 while works, for doesn't - because it adds block. <- fixed
 this doesn't work. <- fixed
-lambda with parameters doesn't work (with parameters is ok)  <- TODO
+lambda with parameters doesn't work (with parameters is ok)  <- fixed

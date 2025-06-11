@@ -16,6 +16,7 @@ from src.expr import (
     Binary,
     Assign,
     Expr,
+    FunctionExpr,
 )
 from src.interpreter import Interpreter
 from src.stmt import (
@@ -64,7 +65,7 @@ class Resolver(VisitorExpr, VisitorStmt):
         self.scopes[-1]["this"] = True
         for method in stmt.methods:
             declaration = FunctionType.FUNCTION
-            self.resolve_function(function_stmt=method, function_type=declaration)
+            self.resolve_function(function_param=method, function_type=declaration)
         self.end_scope()
 
     def visit_expression_stmt(self, stmt: "Expression") -> None:
@@ -73,18 +74,27 @@ class Resolver(VisitorExpr, VisitorStmt):
     def visit_function_stmt(self, stmt: "FunctionStmt") -> None:
         self.declare(name=stmt.name)
         self.define(name=stmt.name)
-        self.resolve_function(function_stmt=stmt, function_type=FunctionType.FUNCTION)
+        self.resolve_function(function_param=stmt, function_type=FunctionType.FUNCTION)
+
+    def visit_function_expr(self, expr: "FunctionExpr"):
+        self.resolve_function(function_param=expr, function_type=FunctionType.FUNCTION)
 
     def resolve_function(
-        self, function_stmt: FunctionStmt, function_type: FunctionType
+        self, function_param: FunctionStmt | FunctionExpr, function_type: FunctionType
     ):
+        match function_param:
+            case FunctionExpr():
+                function = function_param
+            case FunctionStmt():
+                function = function_param.function
+
         enclosing_function = self.current_function
         self.current_function = function_type
         self.begin_scope()
-        for param in function_stmt.function.params:
+        for param in function.params:
             self.declare(name=param)
             self.define(name=param)
-        self.resolve(to_resolve=function_stmt.function.body)
+        self.resolve(to_resolve=function.body)
         self.end_scope()
         self.current_function = enclosing_function
 
