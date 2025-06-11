@@ -145,6 +145,12 @@ class Resolver(VisitorExpr, VisitorStmt):
                 self.interpreter.resolve(expr=expr, depth=len(self.scopes) - i)
             i -= 1
 
+    # def resolve_local(self, expr, name):
+    #     for i in range(len(self.scopes) - 1, -1, -1):
+    #         if name.lexeme in self.scopes[i]:
+    #             self.interpreter.resolve(expr, len(self.scopes) - 1 - i)
+    #
+
     def visit_this_expr(self, expr: "This") -> None:
         self.resolve_local(expr=expr, name=expr.keyword)
 

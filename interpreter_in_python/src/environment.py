@@ -20,7 +20,7 @@ class Environment:
             self.enclosing.assign(name=name, value=value)
         else:
             raise RunTimeException(
-                token=name, message=f"Undefined variable: [{name.lexeme}]"
+                token=name, message=f"cant assign, Undefined variable: [{name.lexeme}]"
             )
 
     def assign_at(self, distance: int, name: Token, value: Any):
@@ -33,7 +33,7 @@ class Environment:
             return self.enclosing.get(name)
         else:
             raise RunTimeException(
-                token=name, message=f"Undefined variable: [{name.lexeme}]"
+                token=name, message=f"Can't get. Undefined variable: [{name.lexeme}]"
             )
 
     def get_at(self, distance: int, name: str):

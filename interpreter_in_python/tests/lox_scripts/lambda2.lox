@@ -1,0 +1,7 @@
+fun run(fn) {
+    fn();
+}
+
+run(fun() {
+    print "lambda works";
+});

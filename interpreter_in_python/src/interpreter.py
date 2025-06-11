@@ -208,8 +208,8 @@ class Interpreter(VisitorExpr, VisitorStmt):
 
     def visit_assign_expr(self, expr: Assign) -> None:
         value = self.evaluate(expr=expr.value)
-        distance = self.locals.get(id(expr), 0)
-        if distance:
+        distance = self.locals.get(id(expr), None)
+        if distance is not None:
             self.environment.assign_at(distance=distance, name=expr.name, value=value)
         else:
             self.globals.assign(name=expr.name, value=value)
@@ -328,7 +328,7 @@ class Interpreter(VisitorExpr, VisitorStmt):
 
     def look_up_variable(self, name: Token, expr: Expr):
         distance = self.locals.get(id(expr), None)
-        if distance:
+        if distance is not None:
             return self.environment.get_at(distance=distance, name=name.lexeme)
         else:
             return self.globals.get(name=name)

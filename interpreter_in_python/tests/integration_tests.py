@@ -29,7 +29,8 @@ def expected_data() -> str:
 
 tests = [
     ("lox_scripts/break_test.lox", "After loop\n"),
-    ("lox_scripts/lambda.lox", "lambda works\n"),
+    ("lox_scripts/lambda1.lox", "lambda works\n"),
+    ("lox_scripts/lambda2.lox", "lambda works\n"),
     ("lox_scripts/class1.lox", "instance property works\n"),
     ("lox_scripts/class2.lox", "Staff\n"),
     ("lox_scripts/class3.lox", "thisStaff\n"),
