@@ -1,0 +1,11 @@
+class TestClass {
+        init(x) {
+          print("in init");
+          this.x = x;
+        }
+        doStaff() {
+           print this.x;
+    }
+}
+var obj = TestClass("test");
+obj.doStaff();

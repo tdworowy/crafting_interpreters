@@ -1,0 +1,10 @@
+class TestClass {
+    init(x) {
+        this.x = x;
+    }
+    printStaff() {
+        print this.x;
+    }
+}
+var obj = TestClass("constructors works");
+obj.printStaff();

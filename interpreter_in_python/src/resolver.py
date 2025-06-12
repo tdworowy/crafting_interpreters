@@ -40,6 +40,12 @@ class FunctionType(Enum):
     NONE = auto()
     FUNCTION = auto()
     METHOD = auto()
+    INITIALIZER = auto()
+
+
+class ClassType(Enum):
+    NONE = auto()
+    CLASS = auto()
 
 
 class Resolver(VisitorExpr, VisitorStmt):
@@ -49,6 +55,7 @@ class Resolver(VisitorExpr, VisitorStmt):
         self.scopes = []
         self.had_error = False
         self.current_function = FunctionType.NONE
+        self.current_class = ClassType.NONE
 
     def visit_block_stmt(self, stmt: "Block") -> None:
         self.begin_scope()
@@ -59,14 +66,22 @@ class Resolver(VisitorExpr, VisitorStmt):
         pass
 
     def visit_class_stmt(self, stmt: "Class") -> None:
+        enclosing_class = self.current_class
+        self.current_class = ClassType.CLASS
+
         self.declare(name=stmt.name)
         self.define(name=stmt.name)
         self.begin_scope()
         self.scopes[-1]["this"] = True
         for method in stmt.methods:
-            declaration = FunctionType.FUNCTION
+            if method.name.lexeme == "init":
+                declaration = FunctionType.INITIALIZER
+            else:
+                declaration = FunctionType.METHOD
             self.resolve_function(function_param=method, function_type=declaration)
         self.end_scope()
+
+        self.current_class = enclosing_class
 
     def visit_expression_stmt(self, stmt: "Expression") -> None:
         self.resolve(to_resolve=stmt.expression)
@@ -113,6 +128,10 @@ class Resolver(VisitorExpr, VisitorStmt):
             self.had_error = True
             return
         if stmt.value:
+            if self.current_function == FunctionType.INITIALIZER:
+                print("Can't return from initializer.")
+                self.had_error = True
+                return
             self.resolve(to_resolve=stmt.value)
 
     def visit_var_stmt(self, stmt: "Var") -> None:
@@ -155,13 +174,11 @@ class Resolver(VisitorExpr, VisitorStmt):
                 self.interpreter.resolve(expr=expr, depth=len(self.scopes) - i)
             i -= 1
 
-    # def resolve_local(self, expr, name):
-    #     for i in range(len(self.scopes) - 1, -1, -1):
-    #         if name.lexeme in self.scopes[i]:
-    #             self.interpreter.resolve(expr, len(self.scopes) - 1 - i)
-    #
-
     def visit_this_expr(self, expr: "This") -> None:
+        if self.current_class == ClassType.NONE:
+            print(f"Can't use 'this' outside of class.")
+            self.had_error = True
+            return
         self.resolve_local(expr=expr, name=expr.keyword)
 
     def visit_unary_expr(self, expr: "Unary") -> None:

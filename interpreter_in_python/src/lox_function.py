@@ -15,9 +15,11 @@ class LoxFunction(LoxCallable):
         name: Optional[str],
         declaration: FunctionExpr | FunctionStmt,
         closure: Environment,
+        is_initializer: bool = False,
     ):
         self.name = name
         self.closure = closure
+        self.is_initializer = is_initializer
         match declaration:
             case FunctionExpr():
                 self.declaration = declaration
@@ -33,7 +35,13 @@ class LoxFunction(LoxCallable):
                 statements=self.declaration.body, environment=environment
             )
         except ReturnException as return_value:
-            return return_value.token
+            if self.is_initializer:
+                return self.closure.get_at(distance=0, name="this")
+            else:
+                return return_value.token
+
+        if self.is_initializer:
+            return self.closure.get_at(distance=0, name="this")
 
     def arity(self) -> int:
         return len(self.declaration.params)
@@ -42,7 +50,10 @@ class LoxFunction(LoxCallable):
         environment = Environment(enclosing=self.closure)
         environment.define(name="this", value=instance)
         return LoxFunction(
-            name="this", declaration=self.declaration, closure=environment
+            name="this",
+            declaration=self.declaration,
+            closure=environment,
+            is_initializer=self.is_initializer,
         )
 
     def __str__(self):

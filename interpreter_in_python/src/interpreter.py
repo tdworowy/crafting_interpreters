@@ -149,7 +149,10 @@ class Interpreter(VisitorExpr, VisitorStmt):
         methods = {}
         for method in stmt.methods:
             function = LoxFunction(
-                name=method.name.lexeme, declaration=method, closure=self.environment
+                name=method.name.lexeme,
+                declaration=method,
+                closure=self.environment,
+                is_initializer=method.name.lexeme == "init",
             )
             methods[method.name.lexeme] = function
         klass = LoxClass(name=stmt.name.lexeme, methods=methods)
