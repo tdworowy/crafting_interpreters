@@ -143,13 +143,19 @@ class Parser:
             token_type=TokenType.LEFT_BRACE, message="Expect '{' before class body."
         )
         methods: list[FunctionStmt] = []
+        class_methods: list[FunctionStmt] = []
         while not self.check(token_type=TokenType.RIGHT_BRACE) and not self.is_at_end():
-            methods.append(self.function("method"))
+            if self.match(tokens_types=[TokenType.CLASS]):
+                class_methods.append(self.function("method"))
+            else:
+                methods.append(self.function("method"))
 
         self.consume(
             token_type=TokenType.RIGHT_BRACE, message="Expect '}' after class body."
         )
-        return Class(name=name, supper_class=None, methods=methods)
+        return Class(
+            name=name, supper_class=None, methods=methods, class_methods=class_methods
+        )
 
     def statement(self) -> Stmt:
         if self.match(tokens_types=[TokenType.FOR]):

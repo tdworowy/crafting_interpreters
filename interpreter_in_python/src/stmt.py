@@ -94,6 +94,7 @@ class Class(Stmt):
     name: Token
     supper_class: Variable | None
     methods: list[FunctionStmt]
+    class_methods: list[FunctionStmt]
 
     def accept(self, visitor: VisitorStmt) -> T:
         return visitor.visit_class_stmt(self)

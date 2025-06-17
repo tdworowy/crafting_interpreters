@@ -73,6 +73,14 @@ class Resolver(VisitorExpr, VisitorStmt):
         self.define(name=stmt.name)
         self.begin_scope()
         self.scopes[-1]["this"] = True
+        for method in stmt.class_methods:
+            self.begin_scope()
+            self.scopes[-1]["this"] = True
+            self.resolve_function(
+                function_param=method, function_type=FunctionType.METHOD
+            )
+            self.end_scope()
+
         for method in stmt.methods:
             if method.name.lexeme == "init":
                 declaration = FunctionType.INITIALIZER

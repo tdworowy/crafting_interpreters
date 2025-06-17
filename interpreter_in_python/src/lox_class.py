@@ -1,11 +1,19 @@
+from typing import Optional
+
 from src.lox_callable import LoxCallable
 from src.lox_function import LoxFunction
 from src.lox_instance import LoxInstance
 
 
-class LoxClass(LoxCallable):
+class LoxClass(LoxCallable, LoxInstance):
 
-    def __init__(self, name: str, methods: dict[str, LoxFunction]):
+    def __init__(
+        self,
+        meta_class: Optional["LoxClass"],
+        name: str,
+        methods: dict[str, LoxFunction],
+    ):
+        super().__init__(klass=meta_class)
         self.name = name
         self.methods = methods
 

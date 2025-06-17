@@ -146,6 +146,20 @@ class Interpreter(VisitorExpr, VisitorStmt):
 
     def visit_class_stmt(self, stmt: "Class") -> None:
         self.environment.define(name=stmt.name.lexeme, value=None)
+        class_methods = {}
+        for method in stmt.class_methods:
+            function = LoxFunction(
+                name=method.name.lexeme,
+                declaration=method,
+                closure=self.environment,
+                is_initializer=False,
+            )
+            class_methods[method.name.lexeme] = function
+
+        meta_class = LoxClass(
+            meta_class=None, name=f"{stmt.name.lexeme}_metaclass", methods=class_methods
+        )
+
         methods = {}
         for method in stmt.methods:
             function = LoxFunction(
@@ -155,7 +169,7 @@ class Interpreter(VisitorExpr, VisitorStmt):
                 is_initializer=method.name.lexeme == "init",
             )
             methods[method.name.lexeme] = function
-        klass = LoxClass(name=stmt.name.lexeme, methods=methods)
+        klass = LoxClass(meta_class=meta_class, name=stmt.name.lexeme, methods=methods)
         self.environment.assign(name=stmt.name, value=klass)
 
     def visit_expression_stmt(self, stmt: "Expression") -> None:

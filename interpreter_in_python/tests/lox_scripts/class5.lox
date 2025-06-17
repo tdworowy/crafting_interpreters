@@ -1,0 +1,6 @@
+class TestClass {
+        class doStaff() {
+           print "class method works";
+    }
+}
+TestClass.doStaff();
