@@ -3,3 +3,5 @@ function/methods arguments doesn't work <- fixed
 while works, for doesn't - because it adds block. <- fixed
 this doesn't work. <- fixed
 lambda with parameters doesn't work (with parameters is ok)  <- fixed
+
+Add support for collections like list, hashmaps etc.
