@@ -36,6 +36,8 @@ tests = [
     ("lox_scripts/class3.lox", "thisStaff\n"),
     ("lox_scripts/class4.lox", "constructors works\n"),
     ("lox_scripts/class5.lox", "class method works\n"),
+    ("lox_scripts/class6.lox", "Inheritance works\n"),
+    ("lox_scripts/class7.lox", "Inheritance works\n"),
     ("lox_scripts/fib.lox", expected_data()),
     ("lox_scripts/fib_function.lox", expected_data()),
 ]

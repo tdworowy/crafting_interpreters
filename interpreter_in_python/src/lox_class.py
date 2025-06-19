@@ -12,10 +12,12 @@ class LoxClass(LoxCallable, LoxInstance):
         meta_class: Optional["LoxClass"],
         name: str,
         methods: dict[str, LoxFunction],
+        super_class: Optional["LoxClass"] = None,
     ):
         super().__init__(klass=meta_class)
         self.name = name
         self.methods = methods
+        self.super_class = super_class
 
     def __str__(self):
         return self.name
@@ -40,4 +42,8 @@ class LoxClass(LoxCallable, LoxInstance):
             return 0
 
     def find_method(self, name: str) -> LoxFunction | None:
-        return self.methods.get(name, None)
+        method = self.methods.get(name, None)
+        if method:
+            return method
+        elif self.super_class:
+            return self.super_class.find_method(name=name)

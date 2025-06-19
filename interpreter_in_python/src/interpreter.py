@@ -145,7 +145,21 @@ class Interpreter(VisitorExpr, VisitorStmt):
         return stmt.accept(self)
 
     def visit_class_stmt(self, stmt: "Class") -> None:
+        super_class = None
+
+        if stmt.super_class:
+            super_class = self.evaluate(expr=stmt.super_class)
+            if not isinstance(super_class, LoxClass):
+                raise RunTimeException(
+                    token=stmt.super_class.name, message="Superclass must be a class"
+                )
+
         self.environment.define(name=stmt.name.lexeme, value=None)
+
+        if stmt.super_class:
+            self.environment = Environment(enclosing=self.environment)
+            self.environment.define(name="super", value=super_class)
+
         class_methods = {}
         for method in stmt.class_methods:
             function = LoxFunction(
@@ -169,7 +183,15 @@ class Interpreter(VisitorExpr, VisitorStmt):
                 is_initializer=method.name.lexeme == "init",
             )
             methods[method.name.lexeme] = function
-        klass = LoxClass(meta_class=meta_class, name=stmt.name.lexeme, methods=methods)
+        klass = LoxClass(
+            meta_class=meta_class,
+            super_class=super_class,
+            name=stmt.name.lexeme,
+            methods=methods,
+        )
+        if stmt.super_class:
+            self.environment = self.environment.enclosing
+
         self.environment.assign(name=stmt.name, value=klass)
 
     def visit_expression_stmt(self, stmt: "Expression") -> None:
@@ -324,7 +346,17 @@ class Interpreter(VisitorExpr, VisitorStmt):
         return value
 
     def visit_super_expr(self, expr: Super) -> T:
-        raise NotImplementedError
+        distance = self.locals.get(id(expr), None)
+        if distance is not None:
+            super_class = self.environment.get_at(distance=distance, name="super")
+            object = self.environment.get_at(distance=distance - 1, name="this")
+            method = super_class.find_method(name=expr.method.lexeme)
+            if not method:
+                raise RunTimeException(
+                    token=expr.method,
+                    message=f"Undefined property {expr.method.lexeme}.",
+                )
+            return method.bind(instance=object)
 
     def visit_this_expr(self, expr: This) -> T:
         return self.look_up_variable(name=expr.keyword, expr=expr)

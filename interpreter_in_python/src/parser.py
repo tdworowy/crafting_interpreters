@@ -12,6 +12,7 @@ from src.expr import (
     Get,
     Set,
     This,
+    Super,
 )
 from src.stmt import (
     Block,
@@ -139,6 +140,12 @@ class Parser:
         name = self.consume(
             token_type=TokenType.IDENTIFIER, message="Expect class name."
         )
+        super_class = None
+        if self.match(tokens_types=[TokenType.LESS]):
+            self.consume(
+                token_type=TokenType.IDENTIFIER, message="Expect Superclass name."
+            )
+            super_class = Variable(name=self.previous())
         self.consume(
             token_type=TokenType.LEFT_BRACE, message="Expect '{' before class body."
         )
@@ -154,7 +161,10 @@ class Parser:
             token_type=TokenType.RIGHT_BRACE, message="Expect '}' after class body."
         )
         return Class(
-            name=name, supper_class=None, methods=methods, class_methods=class_methods
+            name=name,
+            super_class=super_class,
+            methods=methods,
+            class_methods=class_methods,
         )
 
     def statement(self) -> Stmt:
@@ -415,6 +425,14 @@ class Parser:
             return Literal(value=None)
         if self.match(tokens_types=[TokenType.NUMBER, TokenType.STRING]):
             return Literal(value=self.previous().literal)
+        if self.match(tokens_types=[TokenType.SUPER]):
+            keyword = self.previous()
+            self.consume(token_type=TokenType.DOT, message="Expect '.' after 'super'.")
+            method = self.consume(
+                token_type=TokenType.IDENTIFIER,
+                message="Expect superclass method name.",
+            )
+            return Super(keyword=keyword, method=method)
         if self.match(tokens_types=[TokenType.THIS]):
             return This(keyword=self.previous())
         if self.match(tokens_types=[TokenType.IDENTIFIER]):

@@ -92,7 +92,7 @@ class FunctionStmt(Stmt):
 @dataclass
 class Class(Stmt):
     name: Token
-    supper_class: Variable | None
+    super_class: Variable | None
     methods: list[FunctionStmt]
     class_methods: list[FunctionStmt]
 

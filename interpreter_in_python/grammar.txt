@@ -14,7 +14,7 @@ forStmt -> "for" "(" (varDecl | exprStmr | ";") expression? ";" expression? ")" 
 returnStmt -> return expression? ";";
 whileStmt -> "while" "(" expression ")" statement;
 ifStmt -> "if" "(" expression ")" statement ("else" statement)?;
-classDecl -> "class" IDENTIFIER "{" function* "}";
+classDecl -> "class" IDENTIFIER ("<" IDENTIFIER)? "{" function* "}";
 funcDecl -> "fun" function;
 function -> IDENTIFIER "(" parameters? ")" block;
 parameters -> IDENTIFIER ( "," IDENTIFIER)*;
@@ -33,4 +33,4 @@ factor -> unary (( "/" | "*") unary )*;
 unary ->  ("-" | "!") unary | call;
 call -> primary ( "(" arguments? ")" | "." IDENTIFIER )*;
 arguments -> expression ( "," expression)*;
-primary -> NUMBER | STRING | "true" | "false" | "nil" |  "(" expression ")" | IDENTIFIER;
+primary -> NUMBER | STRING | "true" | "false" | "nil" |  "(" expression ")" | IDENTIFIER | "super" "." IDENTIFIER;
