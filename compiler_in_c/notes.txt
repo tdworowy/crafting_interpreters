@@ -1,0 +1,6 @@
+formating
+░ clang-format -i *.c
+░ clang-format -i *.h
+
+compile
+  gcc *.c -o compiler

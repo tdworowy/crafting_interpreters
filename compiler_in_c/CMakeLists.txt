@@ -9,4 +9,8 @@ add_executable(compiler_in_c
         chunk.c
         chunk.h
         common.h
+        memory.c
+        memory.h
+        debug.c
+        debug.h
         main.c)
