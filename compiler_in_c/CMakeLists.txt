@@ -13,4 +13,5 @@ add_executable(compiler_in_c
         memory.h
         debug.c
         debug.h
-        main.c)
+        main.c
+        value.h)

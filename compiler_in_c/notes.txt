@@ -4,3 +4,5 @@ formating
 
 compile
   gcc *.c -o compiler
+
+TODO fix  segmentation fault (core dumped)
