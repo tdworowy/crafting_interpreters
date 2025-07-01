@@ -14,4 +14,6 @@ add_executable(compiler_in_c
         debug.c
         debug.h
         main.c
-        value.h)
+        value.h
+        vm.h
+        vm.cpp)
