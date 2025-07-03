@@ -2,7 +2,7 @@ from src.lox import Lox
 
 
 def main():
-    with open("../lox_scripts/class_5.lox") as f:
+    with open("../lox_scripts/echo.lox") as f:
         source = f.read()
         Lox().run(source=source, repl=False)
 
