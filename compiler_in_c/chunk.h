@@ -7,6 +7,15 @@
 typedef enum {
   OP_CONSTANT,
   OP_CONSTANT_LONG,
+  OP_ADD,
+  OP_SUBTRACT,
+  OP_MULTIPLY,
+  OP_DIVIDE,
+  // OP_EQUAL,
+  // OP_GREATER,
+  // OP_LESS,
+  // OP_NOT,
+  OP_NEGATE,
   OP_RETURN,
 } OpCode;
 typedef struct {
