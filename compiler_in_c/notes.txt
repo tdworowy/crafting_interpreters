@@ -7,5 +7,3 @@ compile
 
 debuging
 gdb compiler
-
-TODO fix  segmentation fault (core dumped)
