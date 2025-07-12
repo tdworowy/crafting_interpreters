@@ -1,0 +1,7 @@
+fun fib3(n) {
+    if(n <=1) return n;
+    return fib2(n - 2) + fib2(n - 1);
+}
+for(var i = 0; i < 26; i = i + 1) {
+    print fib3(i);
+}

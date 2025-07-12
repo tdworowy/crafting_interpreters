@@ -12,7 +12,7 @@ void initChunk(Chunk *chunk) {
   chunk->lines = NULL;
   initValueArray(&chunk->constants);
 }
-void writeChunk(Chunk *chunk, uint8_t byte, int line) {
+void writeChunk(Chunk *chunk, const uint8_t byte, const int line) {
   if (chunk->capacity < chunk->count + 1) {
     int oldCapacity = chunk->capacity;
     chunk->capacity = GROW_CAPACITY(oldCapacity);
@@ -25,12 +25,12 @@ void writeChunk(Chunk *chunk, uint8_t byte, int line) {
   chunk->count++;
 }
 
-int addConstant(Chunk *chunk, Value value) {
+int addConstant(Chunk *chunk, const Value value) {
   writeValueArray(&chunk->constants, value);
   return chunk->constants.count - 1;
 }
 
-void writeConstant(Chunk *chunk, Value value, int line) {
+void writeConstant(Chunk *chunk, const Value value, const int line) {
   int index = addConstant(chunk, value);
   if (index < 256) {
     writeChunk(chunk, OP_CONSTANT, line);
@@ -50,4 +50,4 @@ void freeChunk(Chunk *chunk) {
   initChunk(chunk);
 }
 
-void printValue(Value value) { printf("%g", value); }
+void printValue(const Value value) { printf("%g", value); }
