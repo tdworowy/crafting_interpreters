@@ -14,7 +14,7 @@ void initChunk(Chunk *chunk) {
 }
 void writeChunk(Chunk *chunk, const uint8_t byte, const int line) {
   if (chunk->capacity < chunk->count + 1) {
-    int oldCapacity = chunk->capacity;
+    const int oldCapacity = chunk->capacity;
     chunk->capacity = GROW_CAPACITY(oldCapacity);
     chunk->code =
         GROW_ARRAY(uint8_t, chunk->code, oldCapacity, chunk->capacity);
@@ -31,15 +31,15 @@ int addConstant(Chunk *chunk, const Value value) {
 }
 
 void writeConstant(Chunk *chunk, const Value value, const int line) {
-  int index = addConstant(chunk, value);
+  const int index = addConstant(chunk, value);
   if (index < 256) {
     writeChunk(chunk, OP_CONSTANT, line);
     writeChunk(chunk, (uint8_t)index, line);
   } else {
     writeChunk(chunk, OP_CONSTANT_LONG, line);
     writeChunk(chunk, (uint8_t)(index & 0xff), line);
-    writeChunk(chunk, (uint8_t)((index >> 8) & 0xff), line);
-    writeChunk(chunk, (uint8_t)((index >> 16) & 0xff), line);
+    writeChunk(chunk, (uint8_t)(index >> 8 & 0xff), line);
+    writeChunk(chunk, (uint8_t)(index >> 16 & 0xff), line);
   }
 }
 
