@@ -3,8 +3,8 @@
 #include <stdio.h>
 
 #include "memory.h"
-#include <stdlib.h>
 #include "vm.h"
+#include <stdlib.h>
 
 void initChunk(Chunk *chunk) {
   chunk->count = 0;
