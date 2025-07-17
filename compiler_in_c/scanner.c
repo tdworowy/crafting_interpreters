@@ -47,7 +47,7 @@ static char advance() {
   return scanner.current[-1];
 }
 
-static char peek() { return scanner.current[0]; }
+static char peek() { return *scanner.current; }
 
 static char peekNext() {
   if (isAtEnd())

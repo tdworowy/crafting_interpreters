@@ -13,7 +13,7 @@ static void resetStack() { vm.stackTop = vm.stack; }
 void initVM() { resetStack(); }
 void freeVM() {}
 
-void push(Value value) {
+void push(const Value value) {
   *vm.stackTop = value;
   vm.stackTop++;
 }
