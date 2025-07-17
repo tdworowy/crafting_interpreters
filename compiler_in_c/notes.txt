@@ -7,3 +7,5 @@ compile
 
 debuging
 gdb compiler
+
+TODO - expressions seems to not work

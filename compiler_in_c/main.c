@@ -26,14 +26,14 @@ static char *readFile(const char *path) {
     exit(74);
   }
   fseek(file, 0L, SEEK_END);
-  size_t fileSize = ftell(file);
+  const size_t fileSize = ftell(file);
   rewind(file);
   char *buffer = malloc(fileSize + 1);
   if (buffer == NULL) {
     fprintf(stderr, "Not enough memory to read \"%s\".\n", path);
     exit(74);
   }
-  size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
+  const size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
   if (bytesRead != fileSize) {
     fprintf(stderr, "Could not read file \"%s\".\n", path);
     exit(74);
@@ -45,7 +45,7 @@ static char *readFile(const char *path) {
 }
 static void runFile(const char *path) {
   char *source = readFile(path);
-  InterpretResult result = interpret(source);
+  const InterpretResult result = interpret(source);
   free(source);
   if (result == INTERPRET_COMPILE_ERROR) {
     exit(65);
