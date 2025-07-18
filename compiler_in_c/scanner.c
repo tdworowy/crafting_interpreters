@@ -66,7 +66,7 @@ static bool match(char expected) {
 
 static void skipWhiteSpace() {
   for (;;) {
-    char c = peek();
+    const char c = peek();
     switch (c) {
     case ' ':
     case '\r':
@@ -185,7 +185,7 @@ Token scanToken() {
   if (isAtEnd()) {
     return makeToken(TOKEN_EOF);
   }
-  char c = advance();
+  const char c = advance();
   if (isAlpha(c))
     return identifier();
   if (isDigit(c))
