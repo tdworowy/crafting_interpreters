@@ -19,8 +19,8 @@ static void runtimeError(const char *format, ...) {
   va_end(args);
   fputs("\n", stderr);
 
-  size_t instruction = vm.ip - vm.chunk->code - 1;
-  int line = vm.chunk->lines[instruction];
+  const size_t instruction = vm.ip - vm.chunk->code - 1;
+  const int line = vm.chunk->lines[instruction];
   fprintf(stderr, "[line %d] in script\n", line);
   resetStack();
 }

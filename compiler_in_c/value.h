@@ -29,7 +29,7 @@ typedef struct {
   int capacity;
   Value *values;
 } ValueArray;
-bool valuesEqual(const Value a, const Value b);
+bool valuesEqual(Value a, Value b);
 void initValueArray(ValueArray *array);
 void writeValueArray(ValueArray *array, Value value);
 void freeValueArray(ValueArray *array);
