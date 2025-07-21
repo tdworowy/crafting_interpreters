@@ -18,7 +18,7 @@ static int simpleInstruction(const char *name, const int offset) {
 
 static int constantInstruction(const char *name, const Chunk *chunk,
                                const int offset) {
-  uint8_t constant = chunk->code[offset + 1];
+  const uint8_t constant = chunk->code[offset + 1];
   printf("%-16s %4d '", name, constant);
   printValue(chunk->constants.values[constant]);
   printf("'\n");
@@ -27,8 +27,9 @@ static int constantInstruction(const char *name, const Chunk *chunk,
 
 static int longConstantInstruction(const char *name, const Chunk *chunk,
                                    const int offset) {
-  uint32_t constant = chunk->code[offset + 1] | (chunk->code[offset + 2] << 8) |
-                      (chunk->code[offset + 3] << 16);
+  const uint32_t constant = chunk->code[offset + 1] |
+                            (chunk->code[offset + 2] << 8) |
+                            (chunk->code[offset + 3] << 16);
   printf("%-16s %4d '", name, constant);
   printValue(chunk->constants.values[constant]);
   printf("'\n");
@@ -43,13 +44,27 @@ int disassembleInstruction(const Chunk *chunk, const int offset) {
     printf("%4d ", chunk->lines[offset]);
   }
 
-  uint8_t instruction = chunk->code[offset];
+  const uint8_t instruction = chunk->code[offset];
   switch (instruction) {
   case OP_CONSTANT:
     return constantInstruction("OP_CONSTANT", chunk, offset);
   case OP_CONSTANT_LONG:
     return longConstantInstruction("OP_CONSTANT_LONG", chunk, offset);
 
+  case OP_NIL:
+    return simpleInstruction("OP_NIL", offset);
+  case OP_TRUE:
+    return simpleInstruction("OP_TRUE", offset);
+  case OP_FALSE:
+    return simpleInstruction("OP_FALSE", offset);
+  case OP_EQUAL:
+    return simpleInstruction("OP_EQUAL", offset);
+  case OP_GREATER:
+    return simpleInstruction("OP_GREATER", offset);
+  case OP_LESS:
+    return simpleInstruction("OP_LESS", offset);
+  case OP_NOT:
+    return simpleInstruction("OP_NOT", offset);
   case OP_NEGATE:
     return simpleInstruction("OP_NEGATE", offset);
   case OP_ADD:

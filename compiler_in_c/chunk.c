@@ -53,4 +53,17 @@ void freeChunk(Chunk *chunk) {
   initChunk(chunk);
 }
 
-void printValue(const Value value) { printf("%g", value); }
+void printValue(const Value value) {
+  switch (value.type) {
+  case VAL_BOOL:
+    printf(AS_BOOL(value) ? "true" : "false");
+    break;
+
+  case VAL_NIL:
+    printf("nil");
+    break;
+  case VAL_NUMBER:
+    printf("%g", AS_NUMBER(value));
+    break;
+  }
+}
