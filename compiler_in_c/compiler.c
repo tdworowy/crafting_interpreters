@@ -176,19 +176,19 @@ static void binary() {
     emitBytes(OP_EQUAL, OP_NOT);
     break;
   case TOKEN_EQUAL_EQUAL:
-    emitBytes(OP_EQUAL, OP_EQUAL);
+    emitByte(OP_EQUAL);
     break;
   case TOKEN_GREATER:
     emitByte(OP_GREATER);
     break;
   case TOKEN_GREATER_EQUAL:
-    emitBytes(OP_GREATER, OP_EQUAL);
+    emitBytes(OP_LESS, OP_NOT);
     break;
   case TOKEN_LESS:
     emitByte(OP_LESS);
     break;
   case TOKEN_LESS_EQUAL:
-    emitBytes(OP_LESS, OP_EQUAL);
+    emitBytes(OP_GREATER, OP_NOT);
     break;
   case TOKEN_PLUS:
     emitByte(OP_ADD);

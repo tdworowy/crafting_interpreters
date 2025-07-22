@@ -1,5 +1,7 @@
 #include "value.h"
 
+#include <stdio.h>
+
 #include "memory.h"
 #include <stdlib.h>
 
@@ -36,5 +38,19 @@ bool valuesEqual(const Value a, const Value b) {
     return AS_NUMBER(a) == AS_NUMBER(b);
   default:
     return false;
+  }
+}
+
+void printValue(const Value value) {
+  switch (value.type) {
+  case VAL_BOOL:
+    printf(AS_BOOL(value) ? "true" : "false");
+    break;
+  case VAL_NIL:
+    printf("nil");
+    break;
+  case VAL_NUMBER:
+    printf("%g", AS_NUMBER(value));
+    break;
   }
 }

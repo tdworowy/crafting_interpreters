@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-void disassembleChunk(Chunk *chunk, const char *name) {
+void disassembleChunk(const Chunk *chunk, const char *name) {
   printf("== %s ==\n", name);
   for (int offset = 0; offset < chunk->count;) {
     offset = disassembleInstruction(chunk, offset);
@@ -48,9 +48,8 @@ int disassembleInstruction(const Chunk *chunk, const int offset) {
   switch (instruction) {
   case OP_CONSTANT:
     return constantInstruction("OP_CONSTANT", chunk, offset);
-  case OP_CONSTANT_LONG:
-    return longConstantInstruction("OP_CONSTANT_LONG", chunk, offset);
-
+  // case OP_CONSTANT_LONG:
+  //   return longConstantInstruction("OP_CONSTANT_LONG", chunk, offset);
   case OP_NIL:
     return simpleInstruction("OP_NIL", offset);
   case OP_TRUE:
