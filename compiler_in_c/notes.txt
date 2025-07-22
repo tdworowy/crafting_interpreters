@@ -3,9 +3,11 @@ formating
 ░ clang-format -i *.h
 
 compile
-  gcc *.c -o compiler
+  gcc *.c -o vm
 
 debuging
-gdb compiler
+gdb vm
 
-TODO - expressions seems to not work
+TODO  BUG
+
+- first constant is always 0
