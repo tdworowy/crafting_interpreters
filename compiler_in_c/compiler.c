@@ -1,8 +1,8 @@
 #include "compiler.h"
 #include "common.h"
+#include "object.h"
 #include "scanner.h"
 #include "vm.h"
-#include <object.h>
 #include <stdio.h>
 #include <stdlib.h>
 
