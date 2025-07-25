@@ -16,4 +16,6 @@ add_executable(compiler_in_c
         main.c
         value.h
         vm.h
-        vm.cpp)
+        vm.cpp
+        object.h
+        object.cpp)

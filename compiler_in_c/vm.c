@@ -63,7 +63,7 @@ static InterpretResult run() {
 #endif
     uint8_t instruction;
     switch (instruction = READ_BYTE()) {
-    //case OP_CONSTANT_LONG:
+    // case OP_CONSTANT_LONG:
     case OP_CONSTANT: {
       const Value constant = READ_CONSTANT();
       push(constant);
