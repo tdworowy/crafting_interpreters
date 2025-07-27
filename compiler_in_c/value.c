@@ -41,10 +41,7 @@ bool valuesEqual(const Value a, const Value b) {
     return AS_NUMBER(a) == AS_NUMBER(b);
 
   case VAL_OBJ:
-    const ObjString *aString = AS_STRING(a);
-    const ObjString *bString = AS_STRING(b);
-    return aString->length == bString->length &&
-           memcmp(aString->chars, bString->chars, aString->length) == 0;
+    return AS_OBJ(a) == AS_OBJ(b);
   default:
     return false;
   }

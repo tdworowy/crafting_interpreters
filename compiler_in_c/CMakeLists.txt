@@ -18,4 +18,6 @@ add_executable(compiler_in_c
         vm.h
         vm.cpp
         object.h
-        object.cpp)
+        object.cpp
+        table.h
+        table.c)

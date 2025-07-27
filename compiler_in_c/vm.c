@@ -31,8 +31,12 @@ static void runtimeError(const char *format, ...) {
 void initVM() {
   resetStack();
   vm.objects = NULL;
+  initTable(&vm.strings);
 }
-void freeVM() { freeObjects(); }
+void freeVM() {
+  freeTable(&vm.strings);
+  freeObjects();
+}
 
 void push(const Value value) {
   *vm.stackTop = value;
@@ -51,9 +55,9 @@ static bool isFalsey(const Value value) {
 }
 
 static void concatenate() {
-  ObjString *b = AS_STRING(pop());
-  ObjString *a = AS_STRING(pop());
-  int length = a->length + b->length;
+  const ObjString *b = AS_STRING(pop());
+  const ObjString *a = AS_STRING(pop());
+  const int length = a->length + b->length;
   char *chars = ALLOCATE(char, length + 1);
   memcpy(chars, a->chars, a->length);
   memcpy(chars + a->length, b->chars, b->length);
