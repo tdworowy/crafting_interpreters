@@ -20,6 +20,7 @@ typedef enum {
   OP_LESS,
   OP_NEGATE,
   OP_RETURN,
+  OP_PRINT,
 } OpCode;
 typedef struct {
   int count;
