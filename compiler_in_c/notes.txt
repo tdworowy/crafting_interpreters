@@ -11,3 +11,4 @@ gdb vm
 TODO  BUG
 
 - first constant is always 0
+- var3.lox not work for 'b'

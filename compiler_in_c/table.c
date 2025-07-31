@@ -36,7 +36,7 @@ static Entry *findEntry(Entry *entries, const int capacity,
     } else if (entry->key == key) {
       return entry;
     }
-    index = index + 1 % capacity;
+    index = (index + 1) % capacity;
   }
 }
 
