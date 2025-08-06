@@ -110,8 +110,13 @@ static InterpretResult run() {
       pop();
       break;
     }
+    case OP_SET_LOCAL: {
+      const uint8_t slot = READ_BYTE();
+      vm.stack[slot] = peek(0);
+      break;
+    }
     case OP_GET_GLOBAL: {
-      ObjString *name = READ_STRING();
+      const ObjString *name = READ_STRING();
       Value value;
       if (!tableGet(&vm.globals, name, &value)) {
         runtimeError("Undefined variable \"%s\".", name->chars);

@@ -16,6 +16,13 @@ static int simpleInstruction(const char *name, const int offset) {
   return offset + 1;
 }
 
+static int byteInstruction(const char *name, const Chunk *chunk,
+                           const int offset) {
+  const uint8_t slot = chunk->code[offset + 1];
+  printf("%-16s %4d '", name, slot);
+  return offset + 2;
+}
+
 static int constantInstruction(const char *name, const Chunk *chunk,
                                const int offset) {
   const uint8_t constant = chunk->code[offset + 1];
@@ -86,6 +93,10 @@ int disassembleInstruction(const Chunk *chunk, const int offset) {
     return simpleInstruction("OP_PRINT", offset);
   case OP_RETURN:
     return simpleInstruction("OP_RETURN", offset);
+  case OP_GET_LOCAL:
+    return byteInstruction("OP_GET_LOCAL", chunk, offset);
+  case OP_SET_LOCAL:
+    return byteInstruction("OP_SET_LOCAL", chunk, offset);
   default:
     printf("Unknown opcode %d\n", instruction);
 

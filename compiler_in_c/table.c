@@ -1,4 +1,7 @@
 #include "table.h"
+
+#include <stdio.h>
+
 #include "value.h"
 #include <stdlib.h>
 #include <string.h>
@@ -20,7 +23,7 @@ void freeTable(Table *table) {
 }
 
 static Entry *findEntry(Entry *entries, const int capacity,
-                        const ObjString *key) {
+const ObjString *key) {
   uint32_t index = key->hash % capacity;
   Entry *tombstone = NULL;
   for (;;) {

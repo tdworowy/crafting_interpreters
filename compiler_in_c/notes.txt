@@ -7,7 +7,10 @@ compile
 
 debuging
 gdb vm
-
+gcc -g *.c *.h
+gdb ./a.out
+(gdb) r arg1 arg2 arg3
+--------------------------
 TODO  BUG
 
 - first constant is always 0
