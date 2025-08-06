@@ -110,6 +110,11 @@ static InterpretResult run() {
       pop();
       break;
     }
+    case OP_GET_LOCAL: {
+      const uint8_t slot = READ_BYTE();
+      push(vm.stack[slot]);
+      break;
+    }
     case OP_SET_LOCAL: {
       const uint8_t slot = READ_BYTE();
       vm.stack[slot] = peek(0);
