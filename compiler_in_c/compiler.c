@@ -239,8 +239,7 @@ static void emitConstant(const Value value) {
 static void patchJump(const int offset) {
   const int jump = currentChunk()->count - offset - 2;
   if (jump > UINT16_MAX) {
-  // TODO fix
-    error('Too mauch code to jump over.');
+    error("Too match code to jump over.");
   }
   currentChunk()->code[offset] = (jump >> 8) & 0xFF;
   currentChunk()->code[offset + 1] = (jump >> 8) & 0xFF;
