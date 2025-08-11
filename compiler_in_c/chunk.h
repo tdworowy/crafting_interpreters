@@ -29,6 +29,7 @@ typedef enum {
   OP_SET_LOCAL,
   OP_GET_GLOBAL,
   OP_SET_GLOBAL,
+  OP_LOOP,
 } OpCode;
 typedef struct {
   int count;
