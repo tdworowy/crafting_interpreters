@@ -6,7 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#define ALLOCATE_OBJ(type, objectType) ( (type *)allocateObject(sizeof(type), objectType)
+#define ALLOCATE_OBJ(type, objectType)                                         \
+  (type *)allocateObject(sizeof(type), objectType)
 
 static Obj *allocateObject(const size_t size, const ObjType type) {
   Obj *object = (Obj *)reallocate(NULL, 0, size);
@@ -16,8 +17,17 @@ static Obj *allocateObject(const size_t size, const ObjType type) {
   return object;
 }
 
-static ObjString *allocateString(char *chars, const int length, uint32_t hash) {
-  ObjString *string = ALLOCATE_OBJ(ObjString, OBJ_STRING));
+ObjFunction *newFunction() {
+  ObjFunction *function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
+  function->arity = 0;
+  function->name = NULL;
+  initChunk(&function->chunk);
+  return function;
+}
+
+static ObjString *allocateString(char *chars, const int length,
+                                 const uint32_t hash) {
+  ObjString *string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
   string->length = length;
   string->chars = chars;
   string->hash = hash;
@@ -55,10 +65,19 @@ ObjString *copyString(const char *chars, const int length) {
   return allocateString(heapChars, length, hash);
 }
 
+static void printFunction(const ObjFunction *function) {
+  printf("<fn %s", function->name->chars);
+}
+
 void printObject(const Value value) {
   switch (OBJ_TYPE(value)) {
-  case OBJ_STRING:
+  case OBJ_STRING: {
     printf("%s", AS_CSTRING(value));
     break;
+  }
+  case OBJ_FUNCTION: {
+    printFunction(AS_FUNCTION(value));
+    break;
+  }
   }
 }

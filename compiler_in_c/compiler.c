@@ -139,7 +139,7 @@ static void parsePrecedence(const Precedence precedence) {
     error("Expect expression.");
     return;
   }
-  bool canAssign = precedence <= PREC_ASSIGNMENT;
+  const bool canAssign = precedence <= PREC_ASSIGNMENT;
   prefixRule(canAssign);
   while (precedence <= getRule(parser.current.type)->precedence) {
     advance();
