@@ -235,7 +235,7 @@ static InterpretResult run() {
 InterpretResult interpret(const char *source) {
   Chunk chunk;
   initChunk(&chunk);
-  if (!compile(source, &chunk)) {
+  if (!compile(source)) {
     freeChunk(&chunk);
     return INTERPRET_COMPILE_ERROR;
   }
