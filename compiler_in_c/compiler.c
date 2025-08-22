@@ -49,7 +49,8 @@ typedef enum {
   TYPE_SCRIPT,
 } FunctionType;
 
-typedef struct {
+typedef struct Compiler {
+  struct Compiler *enclosing;
   ObjFunction *function;
   FunctionType type;
   Local locals[UINT8_COUNT];
@@ -202,7 +203,11 @@ static void addLocal(const Token name) {
   local->name = name;
   local->depth = -1;
 }
+
 static void markInitialized() {
+  if (current->scopeDepth == 0) {
+    return;
+  }
   current->locals[current->localsCount - 1].depth = current->scopeDepth;
 }
 
@@ -268,12 +273,17 @@ static void emitConstant(const Value value) {
   emitBytes(OP_CONSTANT, makeConstant(value));
 }
 
-static void initCompiler(Compiler *compiler, FunctionType type) {
+static void initCompiler(Compiler *compiler, const FunctionType type) {
+  compiler->enclosing = current;
   compiler->function = NULL, compiler->type = type;
   compiler->localsCount = 0;
   compiler->scopeDepth = 0;
   compiler->function = newFunction();
   current = compiler;
+  if (type != TYPE_SCRIPT) {
+    current->function->name =
+        copyString(parser.previous.start, parser.previous.length);
+  }
   Local *local = &current->locals[current->localsCount++];
   local->depth = 0;
   local->name.start = "";
@@ -290,6 +300,7 @@ static ObjFunction *endCompiler() {
                                          : "<script>");
   }
 #endif
+  current = current->enclosing;
   return function;
 }
 
@@ -473,6 +484,37 @@ static void block() {
   consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
 }
 
+static void function(const FunctionType type) {
+  Compiler compiler;
+  initCompiler(&compiler, type);
+  beginScope();
+  consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
+  if (!check(TOKEN_RIGHT_PAREN)) {
+    do {
+      current->function->arity++;
+      if (current->function->arity > 255) {
+        errorAtCurrent("Can't have more than 255 parameters.");
+      }
+      const uint8_t constant = parseVariable("Expect parameter name.");
+      defineVariable(constant);
+
+    } while (match(TOKEN_COMMA));
+  }
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+  consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
+  block();
+
+  ObjFunction *function = endCompiler();
+  emitBytes(OP_CONSTANT, makeConstant(OBJ_VAL(function)));
+}
+
+static void functionDeclaration() {
+  const uint8_t global = parseVariable("Expect function name.");
+  markInitialized();
+  function(TYPE_FUNCTION);
+  defineVariable(global);
+}
+
 static void varDeclaration() {
   const uint8_t global = parseVariable("Expect variable name.");
   if (match(TOKEN_EQUAL)) {
@@ -569,7 +611,7 @@ static void printStatement() {
 }
 
 static void whileStatement() {
-  int loopStart = currentChunk()->count;
+  const int loopStart = currentChunk()->count;
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
   expression();
   consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
@@ -603,6 +645,9 @@ static void synchronize() {
 }
 
 static void declaration() {
+  if (match(TOKEN_FUN)) {
+    functionDeclaration();
+  }
   if (match(TOKEN_VAR)) {
     varDeclaration();
   } else {
