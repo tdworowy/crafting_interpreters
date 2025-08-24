@@ -197,7 +197,7 @@ static int resolveLocal(const Compiler *compiler, const Token *name) {
     const Local *local = &compiler->locals[i];
     if (identifierEqual(name, &local->name)) {
       if (local->depth == -1) {
-        error("can't read local variable in int own initializer.");
+        error("Can't read local variable in its own initializer.");
       }
       return i;
     }

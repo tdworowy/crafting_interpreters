@@ -239,6 +239,7 @@ static InterpretResult run() {
     case OP_NEGATE: {
       if (!IS_NUMBER(peek(0))) {
         runtimeError("Operand must be a number.");
+        return INTERPRET_RUNTIME_ERROR;
       }
       push(NUMBER_VAL(-(AS_NUMBER(pop()))));
       break;
@@ -254,11 +255,11 @@ static InterpretResult run() {
       break;
     }
     case OP_JUMP_IF_FALSE: {
-      const uint8_t offset = READ_SHORT();
+      const uint16_t offset = READ_SHORT();
       if (isFalsey(peek(0))) {
         frame->ip += offset;
-        break;
       }
+      break;
     }
     case OP_LOOP: {
       const uint16_t offset = READ_SHORT();
