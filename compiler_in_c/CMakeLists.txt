@@ -23,4 +23,6 @@ add_executable(compiler_in_c
         table.c
         compiler.c
         compiler.c
-        compiler.c)
+        compiler.c
+        value.c
+        scanner.c)

@@ -1,4 +1,7 @@
 #include "compiler.h"
+
+#include <assert.h>
+
 #include "common.h"
 #include "object.h"
 #include "scanner.h"
@@ -62,7 +65,12 @@ Parser parser;
 Compiler *current = NULL;
 Chunk *compilingChunk;
 
-static Chunk *currentChunk() { return &current->function->chunk; }
+static Chunk *currentChunk() {
+  assert(current && "current compiler is NULL (initCompiler not called?)");
+  assert(current->function &&
+         "current->function is NULL (newFunction not set?)");
+  return &current->function->chunk;
+}
 
 static void expression();
 static void statement();
@@ -138,7 +146,10 @@ static int emitJump(uint8_t instruction) {
   return currentChunk()->count - 2;
 }
 
-static void emitReturn() { emitByte(OP_RETURN); }
+static void emitReturn() {
+  emitByte(OP_NIL);
+  emitByte(OP_RETURN);
+}
 
 static void parsePrecedence(const Precedence precedence) {
   advance();
@@ -244,6 +255,21 @@ static void defineVariable(const uint8_t global) {
   emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
+static uint8_t argumentList() {
+  uint8_t argCount = 0;
+  if (!check(TOKEN_RIGHT_PAREN)) {
+    do {
+      expression();
+      if (argCount == 255) {
+        error("Can't have more than 255 arguments.");
+      }
+      argCount++;
+    } while (match(TOKEN_COMMA));
+  }
+  consume(TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
+  return argCount;
+}
+
 static void patchJump(const int offset) {
   const int jump = currentChunk()->count - offset - 2;
   if (jump > UINT16_MAX) {
@@ -275,7 +301,8 @@ static void emitConstant(const Value value) {
 
 static void initCompiler(Compiler *compiler, const FunctionType type) {
   compiler->enclosing = current;
-  compiler->function = NULL, compiler->type = type;
+  compiler->function = NULL;
+  compiler->type = type;
   compiler->localsCount = 0;
   compiler->scopeDepth = 0;
   compiler->function = newFunction();
@@ -409,6 +436,11 @@ static void binary(bool canAssign) {
   }
 }
 
+static void call(bool canAssign) {
+  const uint8_t argCount = argumentList();
+  emitBytes(OP_CALL, argCount);
+}
+
 static void literal(bool canAssign) {
   switch (parser.previous.type) {
   case TOKEN_FALSE:
@@ -423,8 +455,7 @@ static void literal(bool canAssign) {
 }
 
 ParseRule rules[] = {
-    [TOKEN_LEFT_PAREN] = {grouping, NULL, PREC_NONE},
-    //  [TOKEN_LEFT_PAREN]    = {grouping, call,   PREC_CALL},
+    [TOKEN_LEFT_PAREN] = {grouping, call, PREC_CALL},
     [TOKEN_RIGHT_PAREN] = {NULL, NULL, PREC_NONE},
     [TOKEN_LEFT_BRACE] = {NULL, NULL, PREC_NONE},
     [TOKEN_RIGHT_BRACE] = {NULL, NULL, PREC_NONE},
@@ -438,11 +469,6 @@ ParseRule rules[] = {
     [TOKEN_BANG] = {unary, NULL, PREC_NONE},
     [TOKEN_BANG_EQUAL] = {NULL, binary, PREC_EQUALITY},
     [TOKEN_EQUAL] = {NULL, NULL, PREC_NONE},
-    [TOKEN_EQUAL_EQUAL] = {NULL, NULL, PREC_NONE},
-    [TOKEN_GREATER] = {NULL, NULL, PREC_NONE},
-    [TOKEN_GREATER_EQUAL] = {NULL, NULL, PREC_NONE},
-    [TOKEN_LESS] = {NULL, NULL, PREC_NONE},
-    [TOKEN_LESS_EQUAL] = {NULL, NULL, PREC_NONE},
     [TOKEN_EQUAL_EQUAL] = {NULL, binary, PREC_EQUALITY},
     [TOKEN_GREATER] = {NULL, binary, PREC_COMPARISON},
     [TOKEN_GREATER_EQUAL] = {NULL, binary, PREC_COMPARISON},
@@ -610,6 +636,19 @@ static void printStatement() {
   emitByte(OP_PRINT);
 }
 
+static void returnStatement() {
+  if (current->type == TYPE_SCRIPT) {
+    error("Can't return from top-level code.");
+  }
+  if (match(TOKEN_SEMICOLON)) {
+    emitReturn();
+  } else {
+    expression();
+    consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
+    emitByte(OP_RETURN);
+  }
+}
+
 static void whileStatement() {
   const int loopStart = currentChunk()->count;
   consume(TOKEN_LEFT_PAREN, "Expect '(' after 'while'.");
@@ -671,6 +710,8 @@ static void statement() {
     beginScope();
     block();
     endScope();
+  } else if (match(TOKEN_RETURN)) {
+    returnStatement();
   } else {
     expressionStatement();
   }
