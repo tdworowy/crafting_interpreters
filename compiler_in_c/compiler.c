@@ -66,16 +66,21 @@ Compiler *current = NULL;
 Chunk *compilingChunk;
 
 static Chunk *currentChunk() {
-  assert(current && "current compiler is NULL (initCompiler not called?)");
-  assert(current->function &&
-         "current->function is NULL (newFunction not set?)");
+  if (!current) {
+    printf("Current should't be NULL\n");
+    exit(1);
+  }
+  if (!current->function) {
+    printf("(current->function shouldn't be NULL\n");
+    exit(1);
+  }
   return &current->function->chunk;
 }
 
 static void expression();
 static void statement();
 static void declaration();
-static ParseRule *getRule(const TokenType type);
+static ParseRule *getRule(TokenType type);
 static void parsePrecedence(Precedence precedence);
 
 static void errorAt(const Token *token, const char *message) {
@@ -328,6 +333,7 @@ static ObjFunction *endCompiler() {
   }
 #endif
   current = current->enclosing;
+  // assert(current && "current compiler is NULL");
   return function;
 }
 
@@ -728,7 +734,6 @@ ObjFunction *compile(const char *source) {
   while (!match(TOKEN_EOF)) {
     declaration();
   }
-  endCompiler();
   ObjFunction *function = endCompiler();
   return parser.hadError ? NULL : function;
 }
