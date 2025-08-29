@@ -31,6 +31,7 @@ typedef enum {
   OP_SET_GLOBAL,
   OP_LOOP,
   OP_CALL,
+  OP_CLOSURE
 } OpCode;
 typedef struct {
   int count;
