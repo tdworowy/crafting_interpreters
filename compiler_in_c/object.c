@@ -26,6 +26,7 @@ ObjClosure *newClosure(ObjFunction *function) {
 ObjFunction *newFunction() {
   ObjFunction *function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
   function->arity = 0;
+  function->upvalueCount = 0;
   function->name = NULL;
   initChunk(&function->chunk);
   return function;
@@ -87,21 +88,21 @@ static void printFunction(const ObjFunction *function) {
 
 void printObject(const Value value) {
   switch (OBJ_TYPE(value)) {
-    case OBJ_STRING: {
-      printf("%s", AS_CSTRING(value));
-      break;
-    }
-    case OBJ_FUNCTION: {
-      printFunction(AS_FUNCTION(value));
-      break;
-    }
-    case OBJ_NATIVE: {
-      printf("<native fn>");
-      break;
-    }
-    case OBJ_CLOSURE: {
-      printFunction(AS_CLOSURE(value)->function);
-      break;
-    }
+  case OBJ_STRING: {
+    printf("%s", AS_CSTRING(value));
+    break;
+  }
+  case OBJ_FUNCTION: {
+    printFunction(AS_FUNCTION(value));
+    break;
+  }
+  case OBJ_NATIVE: {
+    printf("<native fn>");
+    break;
+  }
+  case OBJ_CLOSURE: {
+    printFunction(AS_CLOSURE(value)->function);
+    break;
+  }
   }
 }
