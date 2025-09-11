@@ -1,6 +1,7 @@
 #include "memory.h"
 #include <stdlib.h>
 
+#include "compiler.h"
 #include "object.h"
 #include "value.h"
 #include "vm.h"
@@ -23,6 +24,31 @@ void *reallocate(void *pointer, size_t oldSize, const size_t newSize) {
   if (result == NULL)
     exit(1);
   return result;
+}
+
+void markObject(Obj *object) {
+  if (object == NULL)
+    return;
+#ifdef DEBUG_LOG_GC
+  printf("%p mark ", (void *)object);
+  printValue(OBJ_VAL(object));
+  printf("\n");
+#endif
+  object->isMarked = true;
+  if (vm.grayCapacity < vm.grayCount + 1) {
+    vm.grayCapacity = GROW_CAPACITY(vm.grayCapacity);
+    vm.grayStack =
+        (Obj **)realloc(vm.grayStack, sizeof(Obj *) * vm.grayCapacity);
+    if (vm.grayStack == NULL)
+      exit(1);
+    vm.grayStack[vm.grayCount++] = object;
+  }
+}
+
+void markValue(Value value) {
+  if (IS_OBJ(value)) {
+    markObject(AS_OBJ(value));
+  }
 }
 
 void freeObject(Obj *object) {
@@ -59,10 +85,26 @@ void freeObject(Obj *object) {
   }
 }
 
+static void markRoots() {
+  for (Value *slot = vm.stack; slot < vm.stackTop; slot++) {
+    markValue(*slot);
+  }
+  for (int i = 0; i < vm.frameCount; i++) {
+    markObject((Obj *)vm.frames[i].closure);
+  }
+  for (ObjUpvalue *upvalue = vm.openUpvalues; upvalue != NULL;
+       upvalue = upvalue->next) {
+    markObject((Obj *)upvalue);
+  }
+  markTable(&vm.globals);
+  markCompilerRoots();
+}
+
 void collectGarbage() {
 #ifdef DEBUG_LOG_GC
   printf("-- gc begin\n");
 #endif
+  markRoots();
 #ifdef DEBUG_LOG_GC
   printf("-- gc end\n");
 #endif
@@ -75,4 +117,5 @@ void freeObjects() {
     freeObject(object);
     object = next;
   }
+  free(vm.grayStack);
 }
