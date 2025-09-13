@@ -57,6 +57,8 @@ static void defineNative(const char *name, NativeFn function) {
 void initVM() {
   resetStack();
   vm.objects = NULL;
+  vm.bytesAllocated = 0;
+  vm.nextGC = 1024 * 1024;
   vm.grayCount = 0;
   vm.grayCapacity = 0;
   vm.grayStack = NULL;
@@ -155,14 +157,16 @@ static bool isFalsey(const Value value) {
 }
 
 static void concatenate() {
-  const ObjString *b = AS_STRING(pop());
-  const ObjString *a = AS_STRING(pop());
+  const ObjString *b = AS_STRING(peek(0));
+  const ObjString *a = AS_STRING(peek(1));
   const int length = a->length + b->length;
   char *chars = ALLOCATE(char, length + 1);
   memcpy(chars, a->chars, a->length);
   memcpy(chars + a->length, b->chars, b->length);
   chars[length] = '\0';
   ObjString *result = takeString(chars, length);
+  pop();
+  pop();
   push(OBJ_VAL(result));
 }
 

@@ -20,11 +20,12 @@ typedef struct {
   Table globals;
   Table strings;
   ObjUpvalue *openUpvalues;
+  size_t bytesAllocated;
+  size_t nextGC;
   Obj *objects;
   int grayCount;
   int grayCapacity;
   Obj **grayStack;
-  int nextGC;
 } VM;
 
 typedef enum {
