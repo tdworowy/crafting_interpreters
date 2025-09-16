@@ -21,6 +21,12 @@ static Obj *allocateObject(const size_t size, const ObjType type) {
   return object;
 }
 
+ObjClass *newClass(ObjString *name) {
+  ObjClass *klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+  klass->name = name;
+  return klass;
+}
+
 ObjClosure *newClosure(ObjFunction *function) {
   ObjUpvalue **upvalues = ALLOCATE(ObjUpvalue *, function->upvalueCount);
   for (int i = 0; i < function->upvalueCount; i++) {
@@ -126,6 +132,10 @@ void printObject(const Value value) {
   }
   case OBJ_UPVALUE: {
     printf("upvalue");
+    break;
+  }
+  case OBJ_CLASS: {
+    printf("%s", AS_CLASS(value)->name->chars);
     break;
   }
   }

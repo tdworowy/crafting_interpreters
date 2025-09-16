@@ -3,6 +3,7 @@
 
 #include "chunk.h"
 #include "common.h"
+#include "table.h"
 #include "value.h"
 
 #define OBJ_TYPE(value) (AS_OBJ(value)->type)
@@ -19,12 +20,16 @@
 #define IS_CLOSURE(value) isObjType(value, OBJ_CLOSURE)
 #define AS_CLOSURE(value) ((ObjClosure *)AS_OBJ(value))
 
+#define IS_CLASS(value) isObjType(value, OBJ_CLASS)
+#define AS_CLASS(value) ((ObjClass *)AS_OBJ(value))
+
 typedef enum {
   OBJ_STRING,
   OBJ_CLOSURE,
   OBJ_FUNCTION,
   OBJ_NATIVE,
-  OBJ_UPVALUE
+  OBJ_UPVALUE,
+  OBJ_CLASS,
 } ObjType;
 
 struct Obj {
@@ -69,6 +74,12 @@ typedef struct {
   int upvalueCount;
 } ObjClosure;
 
+typedef struct {
+  Obj obj;
+  ObjString *name;
+} ObjClass;
+
+ObjClass *newClass(ObjString *name);
 ObjClosure *newClosure(ObjFunction *function);
 ObjFunction *newFunction();
 ObjNative *newNative(NativeFn function);
