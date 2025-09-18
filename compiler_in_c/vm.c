@@ -410,7 +410,6 @@ static InterpretResult run() {
         return INTERPRET_RUNTIME_ERROR;
       }
       ObjInstance *instance = AS_INSTANCE(peek(1));
-      ObjString *name = READ_STRING();
       tableSet(&instance->fields, READ_STRING(), peek(0));
       const Value value = pop();
       pop();
