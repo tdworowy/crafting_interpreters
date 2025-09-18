@@ -36,6 +36,8 @@ typedef enum {
   OP_CALL,
   OP_CLOSURE,
   OP_CLASS,
+  OP_SET_PROPERTY,
+  OP_GET_PROPERTY,
 } OpCode;
 typedef struct {
   int count;
