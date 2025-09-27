@@ -210,7 +210,7 @@ static uint8_t makeConstant(const Value value) {
   return (uint8_t)constant;
 }
 
-static uint8_t identifierConstant(const Token *name) {
+static uint8_t identifierConstant(Token *name) {
   return makeConstant(OBJ_VAL(copyString(name->start, name->length)));
 }
 
@@ -458,7 +458,7 @@ static void variable(bool canAssign) {
   namedVariable(parser.previous, canAssign);
 }
 
-static Token syntheticToken(const char *text) {
+static Token syntheticToken(char *text) {
   Token token;
   token.start = text;
   token.length = (int)strlen(text);
@@ -902,7 +902,7 @@ static void statement() {
   }
 }
 
-ObjFunction *compile(const char *source) {
+ObjFunction *compile(char *source) {
   initScanner(source);
   Compiler compiler;
   initCompiler(&compiler, TYPE_SCRIPT);

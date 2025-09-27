@@ -46,7 +46,7 @@ static void runtimeError(const char *format, ...) {
   resetStack();
 }
 
-static void defineNative(const char *name, NativeFn function) {
+static void defineNative(char *name, NativeFn function) {
   push(OBJ_VAL(copyString(name, (int)strlen(name))));
   push(OBJ_VAL(newNative(function)));
   tableSet(&vm.globals, AS_STRING(vm.stack[0]), vm.stack[1]);
@@ -143,8 +143,7 @@ static bool callValue(const Value callee, const int argCount) {
   return false;
 }
 
-static bool invokeFromClass(ObjClass *klass, const ObjString *name,
-                            int argCount) {
+static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount) {
   Value method;
   if (!tableGet(&klass->methods, name, &method)) {
     runtimeError("Undefined property '%s'.", name->chars);
@@ -168,7 +167,7 @@ static bool invoke(ObjString *name, int argCount) {
   return invokeFromClass(instance->klass, name, argCount);
 }
 
-static bool bindMethod(ObjClass *klass, const ObjString *name) {
+static bool bindMethod(ObjClass *klass, ObjString *name) {
   Value method;
   if (!tableGet(&klass->methods, name, &method)) {
     runtimeError("Undefined property '%s'.", name->chars);
@@ -293,7 +292,7 @@ static InterpretResult run() {
       break;
     }
     case OP_GET_GLOBAL: {
-      const ObjString *name = READ_STRING();
+      ObjString *name = READ_STRING();
       Value value;
       if (!tableGet(&vm.globals, name, &value)) {
         runtimeError("Undefined variable \"%s\".", name->chars);
@@ -452,8 +451,8 @@ static InterpretResult run() {
         runtimeError("Only instances have properties.");
         return INTERPRET_RUNTIME_ERROR;
       }
-      const ObjInstance *instance = AS_INSTANCE(peek(0));
-      const ObjString *name = READ_STRING();
+      ObjInstance *instance = AS_INSTANCE(peek(0));
+      ObjString *name = READ_STRING();
       Value value;
       if (tableGet(&instance->fields, name, &value)) {
         pop();
@@ -529,7 +528,7 @@ static InterpretResult run() {
 #undef BINARY_OP
 }
 
-InterpretResult interpret(const char *source) {
+InterpretResult interpret(char *source) {
   ObjFunction *function = compile(source);
   if (function == NULL) {
     return INTERPRET_COMPILE_ERROR;

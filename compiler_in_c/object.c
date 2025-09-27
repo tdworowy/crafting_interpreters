@@ -100,7 +100,7 @@ ObjString *takeString(char *chars, const int length) {
   return allocateString(chars, length, hash);
 }
 
-ObjString *copyString(const char *chars, const int length) {
+ObjString *copyString(char *chars, const int length) {
   const uint32_t hash = hashString(chars, length);
   ObjString *interned = tableFindString(&vm.strings, chars, length, hash);
   if (interned != NULL)

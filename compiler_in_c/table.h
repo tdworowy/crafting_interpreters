@@ -17,11 +17,11 @@ typedef struct {
 
 void initTable(Table *table);
 void freeTable(Table *table);
-bool tableGet(const Table *table, const ObjString *key, Value *value);
+bool tableGet(Table *table, ObjString *key, Value *value);
 bool tableSet(Table *table, ObjString *key, Value value);
-bool tableDelete(const Table *table, const ObjString *key);
-void tableAddAll(const Table *from, Table *to);
-ObjString *tableFindString(const Table *table, const char *chars, int length,
+bool tableDelete(Table *table, ObjString *key);
+void tableAddAll(Table *from, Table *to);
+ObjString *tableFindString(Table *table, char *chars, int length,
                            uint32_t hash);
 void tableRemoveWhite(Table *table);
 void markTable(Table *table);

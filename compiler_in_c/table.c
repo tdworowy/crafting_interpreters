@@ -22,8 +22,7 @@ void freeTable(Table *table) {
   initTable(table);
 }
 
-static Entry *findEntry(Entry *entries, const int capacity,
-                        const ObjString *key) {
+static Entry *findEntry(Entry *entries, int capacity, ObjString *key) {
   // uint32_t index = key->hash % capacity;
   uint32_t index = key->hash & (capacity - 1);
   Entry *tombstone = NULL;
@@ -44,7 +43,7 @@ static Entry *findEntry(Entry *entries, const int capacity,
   }
 }
 
-bool tableGet(const Table *table, const ObjString *key, Value *value) {
+bool tableGet(Table *table, ObjString *key, Value *value) {
   if (table->count == 0)
     return false;
   const Entry *entry = findEntry(table->entries, table->capacity, key);
@@ -54,7 +53,7 @@ bool tableGet(const Table *table, const ObjString *key, Value *value) {
   return true;
 }
 
-static void adjustCapacity(Table *table, const int capacity) {
+static void adjustCapacity(Table *table, int capacity) {
   Entry *entries = ALLOCATE(Entry, capacity);
   for (int i = 0; i < capacity; i++) {
     entries[i].key = NULL;
@@ -75,7 +74,7 @@ static void adjustCapacity(Table *table, const int capacity) {
   table->capacity = capacity;
 }
 
-bool tableSet(Table *table, ObjString *key, const Value value) {
+bool tableSet(Table *table, ObjString *key, Value value) {
   if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
     const int capacity = GROW_CAPACITY(table->capacity);
     adjustCapacity(table, capacity);
@@ -89,7 +88,7 @@ bool tableSet(Table *table, ObjString *key, const Value value) {
   return isNewKey;
 }
 
-bool tableDelete(const Table *table, const ObjString *key) {
+bool tableDelete(Table *table, ObjString *key) {
   if (table->count == 0)
     return false;
   Entry *entry = findEntry(table->entries, table->capacity, key);
@@ -101,7 +100,7 @@ bool tableDelete(const Table *table, const ObjString *key) {
   return true;
 }
 
-void tableAddAll(const Table *from, Table *to) {
+void tableAddAll(Table *from, Table *to) {
   for (int i = 0; i < from->capacity; i++) {
     const Entry *entry = &from->entries[i];
     if (entry->key != NULL)
@@ -109,8 +108,8 @@ void tableAddAll(const Table *from, Table *to) {
   }
 }
 
-ObjString *tableFindString(const Table *table, const char *chars,
-                           const int length, const uint32_t hash) {
+ObjString *tableFindString(Table *table, char *chars, int length,
+                           uint32_t hash) {
   if (table->count == 0)
     return NULL;
   // uint32_t index = hash % table->capacity;

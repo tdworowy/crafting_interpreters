@@ -4,14 +4,14 @@
 #include <string.h>
 
 typedef struct {
-  const char *start;
-  const char *current;
+  char *start;
+  char *current;
   int line;
 } Scanner;
 
 Scanner scanner;
 
-void initScanner(const char *source) {
+void initScanner(char *source) {
   scanner.start = source;
   scanner.current = source;
   scanner.line = 1;
@@ -33,7 +33,7 @@ static Token makeToken(const TokenType type) {
   return token;
 }
 
-static Token errorToken(const char *message) {
+static Token errorToken(char *message) {
   Token token;
   token.type = TOKEN_ERROR;
   token.start = message;

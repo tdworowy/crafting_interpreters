@@ -38,7 +38,7 @@ typedef enum {
 extern VM vm;
 void initVM();
 void freeVM();
-InterpretResult interpret(const char *source);
+InterpretResult interpret(char *source);
 void push(Value value);
 Value pop();
 #endif
