@@ -69,7 +69,7 @@ typedef struct Compiler {
   ObjFunction *function;
   FunctionType type;
   Local locals[UINT8_COUNT];
-  int localsCount;
+  int localCount;
   Upvalue upvalues[UINT8_COUNT];
   int scopeDepth;
 } Compiler;
@@ -221,7 +221,7 @@ static bool identifierEqual(const Token *a, const Token *b) {
 }
 
 static int resolveLocal(const Compiler *compiler, const Token *name) {
-  for (int i = compiler->localsCount - 1; i >= 0; i--) {
+  for (int i = compiler->localCount - 1; i >= 0; i--) {
     const Local *local = &compiler->locals[i];
     if (identifierEqual(name, &local->name)) {
       if (local->depth == -1) {
@@ -269,11 +269,11 @@ static int resolveUpvalue(Compiler *compiler, const Token *name) {
 }
 
 static void addLocal(const Token name) {
-  if (current->localsCount >= UINT8_COUNT) {
+  if (current->localCount >= UINT8_COUNT) {
     error("Too many local variables in function.");
     return;
   }
-  Local *local = &current->locals[current->localsCount++];
+  Local *local = &current->locals[current->localCount++];
   local->name = name;
   local->depth = -1;
   local->isCaptured = false;
@@ -283,7 +283,7 @@ static void markInitialized() {
   if (current->scopeDepth == 0) {
     return;
   }
-  current->locals[current->localsCount - 1].depth = current->scopeDepth;
+  current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
 static void declareVariable() {
@@ -291,7 +291,7 @@ static void declareVariable() {
     return;
   }
   const Token *name = &parser.previous;
-  for (int i = current->localsCount - 1; i >= 0; i--) {
+  for (int i = current->localCount - 1; i >= 0; i--) {
     const Local *local = &current->locals[i];
     if (local->depth != -1 && local->depth < current->scopeDepth) {
       break;
@@ -340,7 +340,7 @@ static void patchJump(const int offset) {
     error("Too match code to jump over.");
   }
   currentChunk()->code[offset] = (jump >> 8) & 0xFF;
-  currentChunk()->code[offset + 1] = (jump >> 8) & 0xFF;
+  currentChunk()->code[offset + 1] = jump & 0xFF;
 }
 
 static void and_(bool canAssign) {
@@ -367,7 +367,7 @@ static void initCompiler(Compiler *compiler, const FunctionType type) {
   compiler->enclosing = current;
   compiler->function = NULL;
   compiler->type = type;
-  compiler->localsCount = 0;
+  compiler->localCount = 0;
   compiler->scopeDepth = 0;
   compiler->function = newFunction();
   current = compiler;
@@ -375,7 +375,7 @@ static void initCompiler(Compiler *compiler, const FunctionType type) {
     current->function->name =
         copyString(parser.previous.start, parser.previous.length);
   }
-  Local *local = &current->locals[current->localsCount++];
+  Local *local = &current->locals[current->localCount++];
   local->depth = 0;
   local->isCaptured = false;
   if (type != TYPE_FUNCTION) {
@@ -405,15 +405,15 @@ static ObjFunction *endCompiler() {
 static void beginScope() { current->scopeDepth++; }
 
 static void endScope() {
-  while (current->localsCount > 0 &&
-         current->locals[current->localsCount - 1].depth >
-             current->scopeDepth) {
-    if (current->locals[current->localsCount - 1].isCaptured) {
+  current->scopeDepth--;
+  while (current->localCount > 0 &&
+         current->locals[current->localCount - 1].depth > current->scopeDepth) {
+    if (current->locals[current->localCount - 1].isCaptured) {
       emitByte(OP_CLOSE_UPVALUE);
     } else {
       emitByte(OP_POP);
     }
-    current->scopeDepth--;
+    current->localCount--;
   }
 }
 
@@ -423,7 +423,7 @@ static void grouping(bool canAssign) {
 }
 
 static void number(bool canAssign) {
-  const double value = strtod(parser.current.start, NULL);
+  const double value = strtod(parser.previous.start, NULL);
   emitConstant(NUMBER_VAL(value));
 }
 
@@ -442,15 +442,17 @@ static void namedVariable(const Token name, const bool canAssign) {
     getOp = OP_GET_UPVALUE;
     setOP = OP_SET_UPVALUE;
   } else {
+    // Global: operand is the constant index of the identifier string.
+    arg = identifierConstant((Token *)&name);
     getOp = OP_GET_GLOBAL;
     setOP = OP_SET_GLOBAL;
   }
 
   if (canAssign && match(TOKEN_EQUAL)) {
     expression();
-    emitBytes(setOP, arg);
+    emitBytes(setOP, (uint8_t)arg);
   } else {
-    emitBytes(getOp, arg);
+    emitBytes(getOp, (uint8_t)arg);
   }
 }
 
@@ -495,7 +497,7 @@ static void this_(bool canAssign) {
 }
 
 static void unary(bool canAssign) {
-  const TokenType operatorType = parser.current.type;
+  const TokenType operatorType = parser.previous.type;
   parsePrecedence(PREC_UNARY);
   switch (operatorType) {
   case TOKEN_BANG:
@@ -871,8 +873,7 @@ static void declaration() {
     classDeclaration();
   } else if (match(TOKEN_FUN)) {
     functionDeclaration();
-  }
-  if (match(TOKEN_VAR)) {
+  } else if (match(TOKEN_VAR)) {
     varDeclaration();
   } else {
     statement();

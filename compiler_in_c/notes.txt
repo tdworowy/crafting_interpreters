@@ -15,7 +15,3 @@ gdb ./a.out
 (gdb) frame 0
 (gdb) list
 --------------------------
-TODO  BUG
-
-- first constant is always 0
-- var3.lox not work for 'b'

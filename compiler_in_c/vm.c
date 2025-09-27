@@ -76,7 +76,7 @@ void freeVM() {
   freeObjects();
 }
 
-void push(const Value value) {
+void push(Value value) {
   *vm.stackTop = value;
   vm.stackTop++;
 }
@@ -86,7 +86,7 @@ Value pop() {
   return *vm.stackTop;
 }
 
-static Value peek(const int distance) { return vm.stackTop[-1 - distance]; }
+static Value peek(int distance) { return vm.stackTop[-1 - distance]; }
 
 static bool call(ObjClosure *closure, const int argCount) {
   if (argCount != closure->function->arity) {
@@ -154,7 +154,7 @@ static bool invokeFromClass(ObjClass *klass, ObjString *name, int argCount) {
 
 static bool invoke(ObjString *name, int argCount) {
   Value receiver = peek(argCount);
-  if (IS_INSTANCE(receiver)) {
+  if (!IS_INSTANCE(receiver)) {
     runtimeError("Only instances have methods.");
     return false;
   }
@@ -293,6 +293,10 @@ static InterpretResult run() {
     }
     case OP_GET_GLOBAL: {
       ObjString *name = READ_STRING();
+      if (name == NULL) {
+        runtimeError("Internal error: NULL global name.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
       Value value;
       if (!tableGet(&vm.globals, name, &value)) {
         runtimeError("Undefined variable \"%s\".", name->chars);
@@ -303,12 +307,20 @@ static InterpretResult run() {
     }
     case OP_DEFINE_GLOBAL: {
       ObjString *name = READ_STRING();
+      if (name == NULL) {
+        runtimeError("Internal error: NULL global name.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
       tableSet(&vm.globals, name, peek(0));
       pop();
       break;
     }
     case OP_SET_GLOBAL: {
       ObjString *name = READ_STRING();
+      if (name == NULL) {
+        runtimeError("Internal error: NULL global name.");
+        return INTERPRET_RUNTIME_ERROR;
+      }
       if (tableSet(&vm.globals, name, peek(0))) {
         tableDelete(&vm.globals, name);
         runtimeError("Undefined variable '%s'.", name->chars);

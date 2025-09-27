@@ -3,4 +3,4 @@ fun test(a) {
  print a;
  return a;
 }
-print test(10) + 1;
+print test(10);

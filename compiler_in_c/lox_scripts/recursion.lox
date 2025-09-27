@@ -1,0 +1,7 @@
+fun test(i) {
+if (i > 0) {
+    test(i - 1);
+    print 1;
+  }
+}
+test(4);

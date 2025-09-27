@@ -44,6 +44,10 @@ static Entry *findEntry(Entry *entries, int capacity, ObjString *key) {
 }
 
 bool tableGet(Table *table, ObjString *key, Value *value) {
+  if (key == NULL) {
+    // Defensive: a NULL key indicates a bug in the caller; avoid crash.
+    return false;
+  }
   if (table->count == 0)
     return false;
   const Entry *entry = findEntry(table->entries, table->capacity, key);
@@ -75,6 +79,10 @@ static void adjustCapacity(Table *table, int capacity) {
 }
 
 bool tableSet(Table *table, ObjString *key, Value value) {
+  if (key == NULL) {
+    // Defensive: ignore attempts to set a NULL key.
+    return false;
+  }
   if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
     const int capacity = GROW_CAPACITY(table->capacity);
     adjustCapacity(table, capacity);
@@ -89,6 +97,8 @@ bool tableSet(Table *table, ObjString *key, Value value) {
 }
 
 bool tableDelete(Table *table, ObjString *key) {
+  if (key == NULL)
+    return false;
   if (table->count == 0)
     return false;
   Entry *entry = findEntry(table->entries, table->capacity, key);
