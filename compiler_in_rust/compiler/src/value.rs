@@ -24,3 +24,17 @@ impl ValueArray {
         self.count += 1;
     }
 }
+
+#[test]
+fn test_value_array() {
+    let mut value_array = ValueArray::new();
+    assert_eq!(value_array.count, 0);
+    assert_eq!(value_array.capacity, 0);
+    assert_eq!(value_array.values, vec![]);
+
+    value_array.write(123);
+
+    assert_eq!(value_array.count, 1);
+    assert_eq!(value_array.capacity, 8);
+    assert_eq!(value_array.values, vec![123, 0, 0, 0, 0, 0, 0, 0]);
+}

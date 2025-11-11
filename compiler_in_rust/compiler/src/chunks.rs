@@ -1,4 +1,4 @@
-use crate::{grow_capacity, value::ValueArray};
+use crate::{grow_capacity, value::ValueArray, vm::VM};
 
 pub enum OpCode {
     OP_CONSTANT,
@@ -68,10 +68,10 @@ impl Chunk {
         self.lines[self.count as usize] = line;
         self.count += 1;
     }
-    pub fn add_constant(&mut self, value: u64) -> usize {
-        //push(value); // TODO to implement
+    pub fn add_constant(&mut self, value: u64, vm: &mut VM) -> usize {
+        vm.push(value);
         self.constants.write(value);
-        //pop(); // TODO to implement
+        vm.pop();
         self.constants.values.len() - 1
     }
 }
@@ -85,6 +85,7 @@ impl Default for Chunk {
 #[test]
 fn test_chunk() {
     let mut chunk = Chunk::new();
+    let mut vm = VM::new();
     chunk.write_chunk(10, 122);
     assert_eq!(chunk.count, 1);
     assert_eq!(chunk.capacity, 8);
@@ -98,7 +99,7 @@ fn test_chunk() {
             values: vec![]
         }
     );
-    chunk.add_constant(123);
+    chunk.add_constant(123, &mut vm);
     assert_eq!(
         chunk.constants,
         ValueArray {
