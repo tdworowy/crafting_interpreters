@@ -83,4 +83,42 @@ impl<'a> Scanner<'a> {
             line: self.line,
         }
     }
+    fn advance(&mut self) -> char {
+        let ch = self
+            .source
+            .chars()
+            .nth(self.current)
+            .expect("Advanced past end");
+        self.current += 1;
+        ch
+    }
+    fn peek(&mut self) -> char {
+        let ch = self
+            .source
+            .chars()
+            .nth(self.current)
+            .expect("Peek past end");
+        ch
+    }
+    fn peek_next(&mut self) -> char {
+        if self.is_at_end() {
+            return '\0';
+        }
+        let ch = self
+            .source
+            .chars()
+            .nth(self.current + 1)
+            .expect("Peek past end");
+        ch
+    }
+    fn match_char(&mut self, expected: char) -> bool {
+        if self.is_at_end() {
+            false
+        } else if self.peek() != expected {
+            false
+        } else {
+            self.current += 1;
+            false
+        }
+    }
 }
