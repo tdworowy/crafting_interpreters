@@ -87,6 +87,7 @@ fn test_chunk() {
     let mut chunk = Chunk::new();
     let mut vm = VM::new();
     chunk.write_chunk(10, 122);
+
     assert_eq!(chunk.count, 1);
     assert_eq!(chunk.capacity, 8);
     assert_eq!(chunk.code, vec![10, 0, 0, 0, 0, 0, 0, 0]);
