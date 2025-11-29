@@ -76,10 +76,10 @@ impl Scanner {
             line: self.line,
         }
     }
-    fn error_token(&self, message: &str) -> Token {
+    fn error_token(&self, message: String) -> Token {
         Token {
             token_type: TokenType::TOKEN_ERROR,
-            lexeme: message.to_owned(),
+            lexeme: message,
             line: self.line,
         }
     }
@@ -236,7 +236,7 @@ impl Scanner {
             self.advance();
         }
         if self.is_at_end() {
-            return self.error_token("Unterminated string.");
+            return self.error_token("Unterminated string.".to_owned());
         }
         self.advance();
         self.make_token(TokenType::TOKEN_STRING)
@@ -296,7 +296,7 @@ impl Scanner {
                 }
                 '"' => self.string(),
 
-                _ => self.error_token("Unexpected character."),
+                _ => self.error_token("Unexpected character.".to_owned()),
             }
         }
     }
