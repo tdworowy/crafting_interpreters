@@ -1,10 +1,11 @@
 use crate::{
     chunks::Chunk,
     object::ObjFunction,
-    scaner::{Token, TokenType},
+    scaner::{Scanner, Token, TokenType},
 };
 
 struct Parser {
+    scanner: Scanner,
     current: Token,
     previous: Token,
     had_error: bool,
@@ -96,5 +97,23 @@ impl Parser {
     }
     fn error(&mut self, message: String) {
         self.error_et(self.previous.clone(), message);
+    }
+    fn advance(&mut self) {
+        self.previous = self.current.clone();
+        loop {
+            self.current = self.scanner.scan_token();
+            if (self.current.token_type != TokenType::TOKEN_ERROR) {
+                break;
+            } else {
+                self.error_at_current(self.current.lexeme.clone());
+            }
+        }
+    }
+    fn consume(&mut self, token_type: TokenType, message: String) {
+        if self.current.token_type == token_type {
+            self.advance();
+        } else {
+            self.error_at_current(message);
+        }
     }
 }

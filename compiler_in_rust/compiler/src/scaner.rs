@@ -49,15 +49,15 @@ pub struct Token {
     pub line: usize,
 }
 #[derive(Clone, Debug)]
-pub struct Scanner<'a> {
-    source: &'a str,
+pub struct Scanner {
+    source: String,
     start: usize,
     current: usize,
     line: usize,
 }
 
-impl<'a> Scanner<'a> {
-    pub fn new(source: &'a str) -> Self {
+impl Scanner {
+    pub fn new(source: String) -> Self {
         Scanner {
             source,
             start: 0,
@@ -242,7 +242,7 @@ impl<'a> Scanner<'a> {
         self.make_token(TokenType::TOKEN_STRING)
     }
 
-    fn scan_token(&mut self) -> Token {
+    pub fn scan_token(&mut self) -> Token {
         self.skip_whitespace();
         self.start = self.current;
         if self.is_at_end() {
@@ -306,7 +306,7 @@ impl<'a> Scanner<'a> {
 mod tests {
     use super::*;
 
-    fn scan(source: &str) -> Vec<Token> {
+    fn scan(source: String) -> Vec<Token> {
         let mut scanner = Scanner::new(source);
         let mut tokens = Vec::new();
 
@@ -330,7 +330,7 @@ mod tests {
 
     #[test]
     fn test_single_character_tokens() {
-        let source = "{ } ( ) , . - + ; / *";
+        let source = "{ } ( ) , . - + ; / *".to_owned();
         let tokens = scan(source);
 
         let expected = vec![
@@ -353,7 +353,7 @@ mod tests {
 
     #[test]
     fn test_one_or_two_char_tokens() {
-        let source = "! != = == > >= < <=";
+        let source = "! != = == > >= < <=".to_owned();
         let tokens = scan(source);
 
         let expected = vec![
@@ -374,7 +374,8 @@ mod tests {
     #[test]
     fn test_keywords_and_identifiers() {
         let source =
-            "and class else false for fun if nil or print return super this true var while foo bar";
+            "and class else false for fun if nil or print return super this true var while foo bar"
+                .to_owned();
         let tokens = scan(source);
 
         let expected = vec![
@@ -408,7 +409,7 @@ mod tests {
 
     #[test]
     fn test_numbers() {
-        let source = "123 45.67 0.123 .";
+        let source = "123 45.67 0.123 .".to_owned();
         let tokens = scan(source);
 
         let expected = vec![
@@ -424,7 +425,7 @@ mod tests {
 
     #[test]
     fn test_strings() {
-        let source = r#""hello" "" "multi\nline" "unterminated"#;
+        let source = r#""hello" "" "multi\nline" "unterminated"#.to_owned();
         let tokens = scan(source);
 
         let expected = vec![
@@ -448,7 +449,8 @@ mod tests {
             var x = 5; // this is a comment
             // another comment
             print x;  \t  \r
-        ";
+        "
+        .to_owned();
 
         let tokens = scan(source);
 
@@ -474,7 +476,8 @@ mod tests {
             print a;
             // comment
             print \"hello\";
-        ";
+        "
+        .to_owned();
 
         let mut scanner = Scanner::new(source);
         let tokens: Vec<Token> = std::iter::from_fn(|| {
@@ -496,7 +499,7 @@ mod tests {
 
     #[test]
     fn test_unexpected_character() {
-        let source = "@ # $";
+        let source = "@ # $".to_owned();
         let tokens = scan(source);
 
         let types: Vec<TokenType> = token_types(&tokens);
@@ -510,7 +513,8 @@ mod tests {
             var breakfast = "bagels";
             print breakfast;
             if (breakfast == "bagels") print "yes!";
-        "#;
+        "#
+        .to_owned();
 
         let tokens = scan(source);
         let types = token_types(&tokens);
