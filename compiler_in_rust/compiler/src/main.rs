@@ -1,11 +1,12 @@
 use crate::{chunks::Chunk, vm::VM};
 
 mod chunks;
+mod compiler;
 mod memory;
+mod object;
 mod scaner;
 mod value;
 mod vm;
-
 fn main() {
     // TESTING
     let mut chunk = Chunk::new();
