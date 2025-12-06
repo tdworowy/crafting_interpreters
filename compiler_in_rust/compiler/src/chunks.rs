@@ -1,5 +1,6 @@
 use crate::{grow_capacity, value::ValueArray, vm::VM};
 
+#[repr(u8)]
 pub enum OpCode {
     OP_CONSTANT,
     OP_NIL,
@@ -44,7 +45,7 @@ pub struct Chunk {
     pub count: i32,
     pub capacity: i32,
     pub code: Vec<u8>,
-    pub lines: Vec<i32>,
+    pub lines: Vec<usize>,
     pub constants: ValueArray,
 }
 
@@ -58,7 +59,7 @@ impl Chunk {
             constants: ValueArray::new(),
         }
     }
-    pub fn write_chunk(&mut self, byte: u8, line: i32) {
+    pub fn write_chunk(&mut self, byte: u8, line: usize) {
         if self.capacity < self.count + 1 {
             self.capacity = grow_capacity!(self.capacity);
             self.code.resize(self.capacity as usize, 0);
