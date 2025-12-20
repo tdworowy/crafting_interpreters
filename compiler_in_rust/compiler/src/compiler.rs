@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, f32::consts::E, f64::consts::E};
 
 use crate::{
     chunks::{Chunk, OpCode},
@@ -108,10 +108,10 @@ fn get_rule(token_type: TokenType) -> ParseRule {
         precedence: Precedence::PREC_NONE,
     })
 }
-
+#[derive(Clone)]
 struct Local {
     name: Token,
-    depth: usize,
+    depth: isize,
     is_captured: bool,
 }
 
@@ -302,6 +302,69 @@ impl<'a> Compiler<'a> {
             TokenType::TOKEN_BANG => self.emit_byte(OpCode::OP_NOT as u8),
             TokenType::TOKEN_MINUS => self.emit_byte(OpCode::OP_NEGATE as u8),
             _ => {}
+        }
+    }
+    fn variable(&mut self, can_assign: bool) {
+        self.named_variable(self.previous.clone(), can_assign);
+    }
+    fn resolve_local(&mut self, name: Token) -> isize {
+        for i in (0..self.locals.len() - 1).rev() {
+            let local = self.locals[i].clone();
+            if name == local.name {
+                if local.depth == -1 {
+                    self.error("Can't read local variable in its own initializer.".to_owned());
+                }
+                return i as isize;
+            }
+        }
+        return -1;
+    }
+    fn add_upvalue(&mut self, index: isize, is_local: bool) -> isize {
+        //TODO
+        return 0;
+    }
+    fn resolve_upvalue(&mut self, name: Token) -> isize {
+        match &mut self.enclosing {
+            None => {
+                return -1;
+            }
+            Some(enclosing) => {
+                let local = enclosing.resolve_local(name.clone());
+                if local != -1 {
+                    enclosing.locals[local as usize].is_captured = true;
+                    return self.add_upvalue(local, true);
+                }
+                let upvalue = self.resolve_upvalue(name.clone());
+                if upvalue != -1 {
+                    return self.add_upvalue(upvalue, false);
+                }
+            }
+        }
+        return -1;
+    }
+    fn named_variable(&mut self, name: Token, can_assign: bool) {
+        let mut get_op: OpCode;
+        let mut set_op: OpCode;
+        let mut arg = self.resolve_local(name);
+        if arg != 1 {
+            get_op = OpCode::OP_GET_LOCAL;
+            set_op = OpCode::OP_SET_LOCAL;
+        } else {
+            arg = self.resolve_upvalue(name);
+            if arg != -1 {
+                get_op = OpCode::OP_GET_UPVALUE;
+                set_op = OpCode::OP_SET_UPVALUE;
+            } else {
+                arg = self.idenfier_constant(name); // TODO
+                get_op = OpCode::OP_GET_GLOBAL;
+                set_op = OpCode::OP_SET_GLOBAL;
+            }
+        }
+        if (can_assign && self.match_token(TokenType::TOKEN_EQUAL)) {
+            self.expression();
+            self.emit_bytes(set_op as u8, arg as u8);
+        } else {
+            self.emit_bytes(get_op as u8, arg as u8);
         }
     }
 }
