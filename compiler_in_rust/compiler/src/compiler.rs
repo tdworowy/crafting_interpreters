@@ -1,4 +1,4 @@
-use std::{collections::HashMap, f32::consts::E, f64::consts::E};
+use std::collections::HashMap;
 
 use crate::{
     chunks::{Chunk, OpCode},
