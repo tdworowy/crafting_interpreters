@@ -1,4 +1,4 @@
-use crate::{grow_capacity, value::ValueArray, vm::VM};
+use crate::grow_capacity;
 
 #[repr(u8)]
 pub enum OpCode {
@@ -46,7 +46,7 @@ pub struct Chunk {
     pub capacity: i32,
     pub code: Vec<u8>,
     pub lines: Vec<usize>,
-    pub constants: ValueArray,
+    pub constants: Vec<String>,
 }
 
 impl Chunk {
@@ -56,7 +56,7 @@ impl Chunk {
             capacity: 0,
             code: Vec::new(),
             lines: Vec::new(),
-            constants: ValueArray::new(),
+            constants: Vec::new(),
         }
     }
     pub fn write_chunk(&mut self, byte: u8, line: usize) {
@@ -69,11 +69,8 @@ impl Chunk {
         self.lines[self.count as usize] = line;
         self.count += 1;
     }
-    pub fn add_constant(&mut self, value: u64, vm: &mut VM) -> usize {
-        vm.push(value);
-        self.constants.write(value);
-        vm.pop();
-        self.constants.values.len() - 1
+    pub fn add_constant(&mut self, value: String) {
+        self.constants.push(value);
     }
 }
 
@@ -86,28 +83,15 @@ impl Default for Chunk {
 #[test]
 fn test_chunk() {
     let mut chunk = Chunk::new();
-    let mut vm = VM::new();
     chunk.write_chunk(10, 122);
+
+    let strings: Vec<String> = Vec::new();
 
     assert_eq!(chunk.count, 1);
     assert_eq!(chunk.capacity, 8);
     assert_eq!(chunk.code, vec![10, 0, 0, 0, 0, 0, 0, 0]);
     assert_eq!(chunk.lines, vec![122, 0, 0, 0, 0, 0, 0, 0]);
-    assert_eq!(
-        chunk.constants,
-        ValueArray {
-            count: 0,
-            capacity: 0,
-            values: vec![]
-        }
-    );
-    chunk.add_constant(123, &mut vm);
-    assert_eq!(
-        chunk.constants,
-        ValueArray {
-            count: 1,
-            capacity: 8,
-            values: vec![123, 0, 0, 0, 0, 0, 0, 0]
-        }
-    );
+    assert_eq!(chunk.constants, strings);
+    chunk.add_constant("123".to_owned());
+    assert_eq!(chunk.constants, vec!["123"]);
 }

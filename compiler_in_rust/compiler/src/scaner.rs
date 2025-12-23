@@ -39,6 +39,7 @@ pub enum TokenType {
     TOKEN_VAR,
     TOKEN_WHILE,
     TOKEN_ERROR,
+    TOKEN_SYNTHETIC,
     TOKEN_EOF,
 }
 

@@ -18,8 +18,8 @@ pub struct Obj<'a> {
 }
 pub struct ObjFunction<'a> {
     obj: Obj<'a>,
-    arity: usize,
-    upvalue_count: usize,
+    pub arity: usize,
+    pub upvalue_count: isize,
     pub chunk: Chunk,
-    name: String,
+    pub name: String,
 }

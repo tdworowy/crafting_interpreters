@@ -116,7 +116,7 @@ struct Local {
 }
 
 struct Upvalue {
-    index: usize,
+    index: isize,
     is_local: bool,
 }
 
@@ -130,6 +130,7 @@ enum FunctionType {
 
 struct Compiler<'a> {
     enclosing: Option<Box<Compiler<'a>>>,
+    class_compiler: Option<Box<ClassCompiler>>,
     function: Box<ObjFunction<'a>>,
     function_type: FunctionType,
     locals: Vec<Local>,
@@ -262,8 +263,8 @@ impl<'a> Compiler<'a> {
             // ExprsionType::STRING => self.string(can_assign),
             // ExprsionType::NUMBER => self.number(can_assign),
             // ExprsionType::LITERAL => self.literal(can_assign),
-            // ExprsionType::SUPER => self._super(can_assign),
-            // ExprsionType::THIS => self.this(can_assign), // TODO
+            ExprsionType::SUPER => self.super_(can_assign),
+            ExprsionType::THIS => self.this(can_assign), // TODO
             _ => self.error("Incorect prefix rule".to_owned()),
         }
         while precedence <= get_rule(self.current.token_type.clone()).precedence {
@@ -279,6 +280,7 @@ impl<'a> Compiler<'a> {
                 // ExprsionType::DOT => self.dot(can_assign),
                 // ExprsionType::AND => self.and(can_assign),
                 // ExprsionType::OR => self.or(can_assign), // TODO
+                ExprsionType::BINARY => self.binary(can_assign),
                 _ => self.error("Incorect infix rule".to_owned()),
             }
             if can_assign && self.match_token(TokenType::TOKEN_EQUAL) {
@@ -320,8 +322,16 @@ impl<'a> Compiler<'a> {
         return -1;
     }
     fn add_upvalue(&mut self, index: isize, is_local: bool) -> isize {
-        //TODO
-        return 0;
+        let upvalue_count = self.function.upvalue_count;
+        for i in 0..upvalue_count {
+            let upvalue = &self.upvalues[i as usize];
+            if upvalue.index == index && upvalue.is_local == is_local {
+                return i;
+            }
+        }
+        self.upvalues[upvalue_count as usize].is_local = is_local;
+        self.upvalues[upvalue_count as usize].index = index;
+        return self.function.upvalue_count;
     }
     fn resolve_upvalue(&mut self, name: Token) -> isize {
         match &mut self.enclosing {
@@ -342,20 +352,27 @@ impl<'a> Compiler<'a> {
         }
         return -1;
     }
+    fn make_constant(&mut self, value: String) -> isize {
+        self.current_chunk().add_constant(value.clone());
+        return value.len() as isize;
+    }
+    fn identifier_constant(&mut self, name: Token) -> isize {
+        return self.make_constant(name.lexeme.to_owned());
+    }
     fn named_variable(&mut self, name: Token, can_assign: bool) {
-        let mut get_op: OpCode;
-        let mut set_op: OpCode;
-        let mut arg = self.resolve_local(name);
+        let get_op: OpCode;
+        let set_op: OpCode;
+        let mut arg = self.resolve_local(name.clone());
         if arg != 1 {
             get_op = OpCode::OP_GET_LOCAL;
             set_op = OpCode::OP_SET_LOCAL;
         } else {
-            arg = self.resolve_upvalue(name);
+            arg = self.resolve_upvalue(name.clone());
             if arg != -1 {
                 get_op = OpCode::OP_GET_UPVALUE;
                 set_op = OpCode::OP_SET_UPVALUE;
             } else {
-                arg = self.idenfier_constant(name); // TODO
+                arg = self.identifier_constant(name.clone());
                 get_op = OpCode::OP_GET_GLOBAL;
                 set_op = OpCode::OP_SET_GLOBAL;
             }
@@ -365,6 +382,89 @@ impl<'a> Compiler<'a> {
             self.emit_bytes(set_op as u8, arg as u8);
         } else {
             self.emit_bytes(get_op as u8, arg as u8);
+        }
+    }
+    fn synthetic_token(&self, text: String) -> Token {
+        Token {
+            token_type: TokenType::TOKEN_SYNTHETIC,
+            lexeme: text.to_owned(),
+            line: 0,
+        }
+    }
+    fn argument_list(&mut self) -> u8 {
+        let mut arg_count: u8 = 0;
+        if !self.check(TokenType::TOKEN_RIGHT_PAREN) {
+            loop {
+                self.expression();
+                arg_count += 1;
+                if self.match_token(TokenType::TOKEN_COMMA) {
+                    break;
+                }
+            }
+        }
+        return arg_count;
+    }
+    fn super_(&mut self, can_assign: bool) {
+        match &self.class_compiler {
+            None => {
+                self.error("Can't use 'super' outside of a class.".to_owned());
+            }
+            Some(class_compiler) => {
+                if !class_compiler.has_super_class {
+                    self.error("Can't use 'super' in a class with no superclass.".to_owned());
+                }
+                self.consume(TokenType::TOKEN_DOT, "Expect '.' after 'super'.".to_owned());
+                self.consume(
+                    TokenType::TOKEN_IDENTIFIER,
+                    "Expect superclass method name.".to_owned(),
+                );
+                let name = self.identifier_constant(self.previous.clone());
+
+                self.named_variable(self.synthetic_token("this".to_owned()), false);
+                if self.match_token(TokenType::TOKEN_LEFT_PAREN) {
+                    let arg_count = self.argument_list();
+                    self.named_variable(self.synthetic_token("super".to_owned()), false);
+                    self.emit_bytes(OpCode::OP_SUPER_INVOKE as u8, name as u8);
+                    self.emit_byte(arg_count);
+                } else {
+                    self.named_variable(self.synthetic_token("super".to_owned()), false);
+                    self.emit_bytes(OpCode::OP_GET_SUPER as u8, name as u8);
+                }
+            }
+        }
+    }
+    fn this(&mut self, can_assign: bool) {
+        match &self.class_compiler {
+            None => {
+                self.error("Can't use 'this' outside of a class.".to_owned());
+            }
+            Some(class_compiler) => {
+                self.variable(false);
+            }
+        }
+    }
+    fn binary(&mut self, can_assign: bool) {
+        let token_type = self.previous.token_type.clone();
+        let parse_rule = get_rule(token_type.clone());
+        self.parse_precedence(parse_rule.precedence.next());
+        match token_type {
+            TokenType::TOKEN_BANG_EQUAL => {
+                self.emit_bytes(OpCode::OP_EQUAL as u8, OpCode::OP_NOT as u8)
+            }
+            TokenType::TOKEN_EQUAL_EQUAL => self.emit_byte(OpCode::OP_EQUAL as u8),
+            TokenType::TOKEN_GREATER => self.emit_byte(OpCode::OP_GREATER as u8),
+            TokenType::TOKEN_GREATER_EQUAL => {
+                self.emit_bytes(OpCode::OP_LESS as u8, OpCode::OP_NOT as u8)
+            }
+            TokenType::TOKEN_LESS => self.emit_byte(OpCode::OP_LESS as u8),
+            TokenType::TOKEN_LESS_EQUAL => {
+                self.emit_bytes(OpCode::OP_GREATER as u8, OpCode::OP_NOT as u8)
+            }
+            TokenType::TOKEN_PLUS => self.emit_byte(OpCode::OP_ADD as u8),
+            TokenType::TOKEN_MINUS => self.emit_byte(OpCode::OP_SUBTRACT as u8),
+            TokenType::TOKEN_STAR => self.emit_byte(OpCode::OP_MULTIPLY as u8),
+            TokenType::TOKEN_SLASH => self.emit_byte(OpCode::OP_DIVIDE as u8),
+            _ => {}
         }
     }
 }
