@@ -185,6 +185,15 @@ impl<'a> Compiler<'a> {
         self.emit_byte(0xff);
         return self.current_chunk().count - 2;
     }
+    fn patch_junp(&mut self, offset: i32) {
+        let jump = self.current_chunk().count - offset - 2;
+        self.current_chunk().code[offset as usize] = ((jump >> 8) & 0xFF) as u8;
+        self.current_chunk().code[(offset + 1) as usize] = (jump & 0xFF) as u8;
+    }
+    fn emit_constant(&mut self, value: String) {
+        let constant_value = self.make_constant(value) as u8;
+        self.emit_bytes(OpCode::OP_CONSTANT as u8, constant_value);
+    }
     fn emit_return(&mut self) {
         if self.function_type == FunctionType::TYPE_INITIALIZER {
             self.emit_bytes(OpCode::OP_GET_LOCAL as u8, 0);
@@ -259,12 +268,12 @@ impl<'a> Compiler<'a> {
         match prefix_rule {
             ExprsionType::GROUPING => self.groping(can_assign),
             ExprsionType::UNARY => self.unary(can_assign),
-            // ExprsionType::VARIABLE => self.variable(can_assign),
-            // ExprsionType::STRING => self.string(can_assign),
-            // ExprsionType::NUMBER => self.number(can_assign),
-            // ExprsionType::LITERAL => self.literal(can_assign),
+            ExprsionType::VARIABLE => self.variable(can_assign),
+            ExprsionType::STRING => self.string(can_assign),
+            ExprsionType::NUMBER => self.number(can_assign),
+            ExprsionType::LITERAL => self.literal(can_assign),
             ExprsionType::SUPER => self.super_(can_assign),
-            ExprsionType::THIS => self.this(can_assign), // TODO
+            ExprsionType::THIS => self.this(can_assign),
             _ => self.error("Incorect prefix rule".to_owned()),
         }
         while precedence <= get_rule(self.current.token_type.clone()).precedence {
@@ -276,10 +285,10 @@ impl<'a> Compiler<'a> {
                 }
             };
             match infix_rule {
-                // ExprsionType::CALL => self.call(can_assign),
-                // ExprsionType::DOT => self.dot(can_assign),
-                // ExprsionType::AND => self.and(can_assign),
-                // ExprsionType::OR => self.or(can_assign), // TODO
+                ExprsionType::CALL => self.call(can_assign),
+                ExprsionType::DOT => self.dot(can_assign),
+                ExprsionType::AND => self.and(can_assign),
+                ExprsionType::OR => self.or(can_assign),
                 ExprsionType::BINARY => self.binary(can_assign),
                 _ => self.error("Incorect infix rule".to_owned()),
             }
@@ -288,6 +297,56 @@ impl<'a> Compiler<'a> {
             }
         }
     }
+    fn string(&mut self, can_assign: bool) {
+        self.emit_constant(self.previous.lexeme.clone());
+    }
+    fn number(&mut self, can_assign: bool) {
+        self.emit_constant(self.previous.lexeme.clone());
+    }
+    fn literal(&mut self, can_assign: bool) {
+        match self.previous.token_type {
+            TokenType::TOKEN_FALSE => self.emit_byte(OpCode::OP_FALSE as u8),
+            TokenType::TOKEN_TRUE => self.emit_byte(OpCode::OP_TRUE as u8),
+            TokenType::TOKEN_NIL => self.emit_byte(OpCode::OP_NIL as u8),
+            _ => {}
+        }
+    }
+    fn call(&mut self, can_assign: bool) {
+        let arg_count = self.argument_list();
+        self.emit_bytes(OpCode::OP_CALL as u8, arg_count);
+    }
+    fn dot(&mut self, can_assign: bool) {
+        self.consume(
+            TokenType::TOKEN_IDENTIFIER,
+            "Expect property name after a '.'.".to_owned(),
+        );
+        let name = self.identifier_constant(self.previous.clone());
+        if can_assign && self.match_token(TokenType::TOKEN_EQUAL) {
+            self.expression();
+            self.emit_bytes(OpCode::OP_SET_PROPERTY as u8, name as u8);
+        } else if self.match_token(TokenType::TOKEN_LEFT_PAREN) {
+            let arg_count = self.argument_list();
+            self.emit_bytes(OpCode::OP_INVOKE as u8, name as u8);
+            self.emit_byte(arg_count);
+        } else {
+            self.emit_bytes(OpCode::OP_GET_PROPERTY as u8, name as u8);
+        }
+    }
+    fn and(&mut self, can_assign: bool) {
+        let end_junp = self.emit_jump(OpCode::OP_JUMP_IF_FALSE as u8);
+        self.emit_byte(OpCode::OP_POP as u8);
+        self.parse_precedence(Precedence::PREC_AND);
+        self.patch_junp(end_junp);
+    }
+    fn or(&mut self, can_assign: bool) {
+        let else_jump = self.emit_jump(OpCode::OP_JUMP_IF_FALSE as u8);
+        let end_jump = self.emit_jump(OpCode::OP_JUMP as u8);
+        self.patch_junp(else_jump);
+        self.emit_byte(OpCode::OP_POP as u8);
+        self.parse_precedence(Precedence::PREC_OR);
+        self.patch_junp(end_jump);
+    }
+
     fn expression(&mut self) {
         self.parse_precedence(Precedence::PREC_ASSIGNMENT);
     }
@@ -466,5 +525,50 @@ impl<'a> Compiler<'a> {
             TokenType::TOKEN_SLASH => self.emit_byte(OpCode::OP_DIVIDE as u8),
             _ => {}
         }
+    }
+    fn synchronize(&mut self) {
+        self.panic_mode = false;
+        while self.current.token_type != TokenType::TOKEN_EOF {
+            if self.previous.token_type == TokenType::TOKEN_SEMICOLON {
+                return;
+            }
+            match self.current.token_type {
+                TokenType::TOKEN_CLASS
+                | TokenType::TOKEN_FUN
+                | TokenType::TOKEN_VAR
+                | TokenType::TOKEN_FOR
+                | TokenType::TOKEN_IF
+                | TokenType::TOKEN_WHILE
+                | TokenType::TOKEN_PRINT
+                | TokenType::TOKEN_RETURN => {
+                    return;
+                }
+                _ => {}
+            }
+            self.advance();
+        }
+    }
+    fn declaration(&mut self) {
+        if self.match_token(TokenType::TOKEN_CLASS) {
+            //self.class_declaration(); TODO
+        } else if self.match_token(TokenType::TOKEN_FUN) {
+            //self.function_declaration(); TODO
+        } else if self.match_token(TokenType::TOKEN_VAR) {
+            // self.var_declaration(); TODO
+        } else {
+            // self.statement() TODO
+        }
+        if self.panic_mode {
+            self.synchronize()
+        }
+    }
+    fn block(&mut self) {
+        while self.check(TokenType::TOKEN_RIGHT_BRACE) && !self.check(TokenType::TOKEN_EOF) {
+            self.declaration()
+        }
+        self.consume(
+            TokenType::TOKEN_RIGHT_BRACE,
+            "Expect '}' after block.".to_owned(),
+        );
     }
 }
