@@ -143,6 +143,7 @@ struct Compiler<'a> {
     panic_mode: bool,
 } // I have combited Parser and Compiler, it may have some side effects 
 
+#[derive(Clone)]
 struct ClassCompiler {
     enclosing: Option<Box<ClassCompiler>>,
     has_super_class: bool,
@@ -547,6 +548,51 @@ impl<'a> Compiler<'a> {
             }
             self.advance();
         }
+    }
+    fn class_declaration(&mut self) {
+        self.consume(TokenType::TOKEN_IDENTIFIER, "Expect class name.".to_owned());
+        let class_name = self.previous.clone();
+        let name_constant = self.identifier_constant(self.previous.clone());
+        //self.declare_variable() TODO
+        self.emit_bytes(OpCode::OP_CLASS as u8, name_constant as u8);
+        //self.define_variable(name_constant) TODO
+        let mut class_compiler = ClassCompiler {
+            enclosing: self.class_compiler.clone(),
+            has_super_class: false,
+        };
+        self.class_compiler = Some(Box::new(class_compiler.clone()));
+        if self.match_token(TokenType::TOKEN_LESS) {
+            self.consume(
+                TokenType::TOKEN_IDENTIFIER,
+                "Expected superclass name.".to_owned(),
+            );
+            self.variable(false);
+            if class_name == self.previous {
+                self.error("A class can't ingerit from itself".to_owned());
+            }
+            // self.begin_scope() TODO
+            // self.define_variable(0) TODO
+            self.named_variable(class_name.clone(), false);
+            self.emit_byte(OpCode::OP_INHERIT as u8);
+            // self.class_compiler.unwrap().has_super_class = true;  TODO
+        }
+        self.named_variable(class_name.clone(), false);
+        self.consume(
+            TokenType::TOKEN_LEFT_BRACE,
+            "Expect '{' before class body.".to_owned(),
+        );
+        while self.check(TokenType::TOKEN_RIGHT_BRACE) && !self.check(TokenType::TOKEN_EOF) {
+            //self.method(); TODO
+        }
+        self.consume(
+            TokenType::TOKEN_RIGHT_BRACE,
+            "Expect '}' after class body.".to_owned(),
+        );
+        self.emit_byte(OpCode::OP_POP as u8);
+        if self.class_compiler.clone().unwrap().has_super_class {
+            //self.end_scope(); TODO
+        }
+        self.class_compiler = self.class_compiler.clone().unwrap().enclosing;
     }
     fn declaration(&mut self) {
         if self.match_token(TokenType::TOKEN_CLASS) {
