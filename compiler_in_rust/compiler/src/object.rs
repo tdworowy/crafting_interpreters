@@ -1,5 +1,5 @@
 use crate::chunks::Chunk;
-
+#[derive(Clone)]
 pub enum ObjType {
     OBJ_STRING,
     OBJ_CLOSURE,
@@ -10,16 +10,33 @@ pub enum ObjType {
     OBJ_INSTANCE,
     OBJ_BOUND_METHOD,
 }
-
-pub struct Obj<'a> {
+#[derive(Clone)]
+pub struct Obj {
     obj_type: ObjType,
     is_marked: bool,
-    next: &'a Obj<'a>,
+    next: Option<Box<Obj>>,
 }
-pub struct ObjFunction<'a> {
-    obj: Obj<'a>,
+#[derive(Clone)]
+pub struct ObjFunction {
+    obj: Box<Obj>,
     pub arity: usize,
     pub upvalue_count: isize,
     pub chunk: Chunk,
     pub name: String,
+}
+
+impl ObjFunction {
+    pub fn new() -> Self {
+        ObjFunction {
+            obj: Box::new(Obj {
+                obj_type: ObjType::OBJ_FUNCTION,
+                is_marked: false,
+                next: None,
+            }),
+            arity: 0,
+            upvalue_count: 0,
+            chunk: Chunk::new(),
+            name: "".to_owned(),
+        }
+    }
 }

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ptr::fn_addr_eq};
 
 use crate::{
     chunks::{Chunk, OpCode},
@@ -115,12 +115,13 @@ struct Local {
     is_captured: bool,
 }
 
+#[derive(Clone)]
 struct Upvalue {
     index: isize,
     is_local: bool,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 enum FunctionType {
     TYPE_FUNCTION,
     TYPE_SCRIPT,
@@ -128,14 +129,15 @@ enum FunctionType {
     TYPE_INITIALIZER,
 }
 
-struct Compiler<'a> {
-    enclosing: Option<Box<Compiler<'a>>>,
+#[derive(Clone)]
+struct Compiler {
+    enclosing: Option<Box<Compiler>>,
     class_compiler: Option<Box<ClassCompiler>>,
-    function: Box<ObjFunction<'a>>,
+    function: Box<ObjFunction>,
     function_type: FunctionType,
     locals: Vec<Local>,
     upvalues: Vec<Upvalue>,
-    scope_depth: usize,
+    scope_depth: isize,
     scanner: Scanner,
     current: Token,
     previous: Token,
@@ -167,7 +169,60 @@ impl Precedence {
     }
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler {
+    fn new(
+        enclosing: Option<Box<Compiler>>,
+        scanner: Scanner,
+        function_type: FunctionType,
+    ) -> Self {
+        let mut compiler = Compiler {
+            enclosing: enclosing.clone(),
+            function_type: function_type.clone(),
+            locals: Vec::new(),
+            upvalues: Vec::new(),
+            scope_depth: 0,
+            function: Box::new(ObjFunction::new()),
+            scanner: scanner.clone(),
+            current: Token {
+                token_type: TokenType::TOKEN_SYNTHETIC,
+                lexeme: "".to_owned(),
+                line: 0,
+            },
+            previous: Token {
+                token_type: TokenType::TOKEN_SYNTHETIC,
+                lexeme: "".to_owned(),
+                line: 0,
+            },
+            had_error: false,
+            panic_mode: false,
+            class_compiler: None,
+        };
+
+        if function_type != FunctionType::TYPE_SCRIPT {
+            compiler.function.name = enclosing.unwrap().previous.lexeme.clone();
+        }
+        let local_name = if function_type != FunctionType::TYPE_FUNCTION {
+            Token {
+                token_type: TokenType::TOKEN_THIS,
+                lexeme: "this".to_owned(),
+                line: 0,
+            }
+        } else {
+            Token {
+                token_type: TokenType::TOKEN_SYNTHETIC,
+                lexeme: "".to_owned(),
+                line: 0,
+            }
+        };
+
+        compiler.locals.push(Local {
+            name: local_name,
+            depth: 0,
+            is_captured: false,
+        });
+
+        compiler
+    }
     fn current_chunk(&mut self) -> &mut Chunk {
         &mut self.function.chunk
     }
@@ -381,6 +436,13 @@ impl<'a> Compiler<'a> {
         }
         return -1;
     }
+    fn add_local(&mut self, name: Token) {
+        self.locals.push(Local {
+            name,
+            depth: -1,
+            is_captured: false,
+        });
+    }
     fn add_upvalue(&mut self, index: isize, is_local: bool) -> isize {
         let upvalue_count = self.function.upvalue_count;
         for i in 0..upvalue_count {
@@ -549,14 +611,115 @@ impl<'a> Compiler<'a> {
             self.advance();
         }
     }
+    fn declare_variable(&mut self) {
+        if self.scope_depth == 0 {
+            return;
+        }
+        let name = self.previous.clone();
+        for local in self.locals.clone() {
+            if local.depth != -1 && local.depth < self.scope_depth {
+                break;
+            }
+            if name == local.name {
+                self.error("Already a variable with this name in this scope.".to_owned());
+            }
+        }
+        self.add_local(name)
+    }
+    fn mark_initialized(&mut self) {
+        if self.scope_depth == 0 {
+            return;
+        }
+        let mut local = self.locals.pop().unwrap();
+        local.depth = self.scope_depth;
+        self.locals.push(local);
+    }
+    fn define_variable(&mut self, global: isize) {
+        if self.scope_depth > 0 {
+            self.mark_initialized();
+            return;
+        }
+        self.emit_bytes(OpCode::OP_DEFINE_GLOBAL as u8, global as u8);
+    }
+    fn begin_scope(&mut self) {
+        self.scope_depth += 1;
+    }
+    fn end_scope(&mut self) {
+        self.scope_depth -= 1;
+        for local in self.locals.clone() {
+            if local.depth > self.scope_depth && local.is_captured {
+                self.emit_byte(OpCode::OP_CLOSE_UPVALUE as u8);
+            }
+            if local.depth > self.scope_depth && !local.is_captured {
+                self.emit_byte(OpCode::OP_POP as u8);
+            }
+        }
+    }
+    fn parse_variable(&mut self, error_masage: String) -> isize {
+        self.consume(TokenType::TOKEN_IDENTIFIER, error_masage);
+        self.declare_variable();
+        if self.scope_depth > 0 {
+            return 0;
+        } else {
+            return self.identifier_constant(self.previous.clone());
+        }
+    }
+    fn function(&self, function_type: FunctionType) {
+        let mut compiler =
+            Compiler::new(self.enclosing.clone(), self.scanner.clone(), function_type);
+        compiler.begin_scope();
+        compiler.consume(
+            TokenType::TOKEN_LEFT_PAREN,
+            "Expect '(' after function name.".to_owned(),
+        );
+        if compiler.check(TokenType::TOKEN_RIGHT_PAREN) {
+            loop {
+                compiler.function.arity += 1;
+                let constat = compiler.parse_variable("Expect parameter name.".to_owned());
+                compiler.define_variable(constat);
+                if compiler.match_token(TokenType::TOKEN_COMMA) {
+                    break;
+                }
+            }
+        }
+        compiler.consume(
+            TokenType::TOKEN_RIGHT_PAREN,
+            "Expect ')' after parameters.".to_owned(),
+        );
+        compiler.consume(
+            TokenType::TOKEN_LEFT_BRACE,
+            "Expect '{' before function body.".to_owned(),
+        );
+        compiler.block();
+        let function: ObjFunction = compiler.end_compiler(); // TODO
+        self.emit_bytes(OpCode::OP_CLOSURE as u8, self.make_constant(function) as u8);
+        for i in 0..function.upvalue_count {
+            let is_local_byte = if compiler.upvalues[i].is_local { 1 } else { 0 };
+            self.emit_byte(is_local_byte);
+            self.emit_byte(compiler.upvalues[i].index as u8);
+        }
+    }
+    fn method(&mut self) {
+        self.consume(
+            TokenType::TOKEN_IDENTIFIER,
+            "Expect method name.".to_owned(),
+        );
+        let constant = self.identifier_constant(self.previous.clone());
+        let mut type_ = FunctionType::TYPE_METHOD;
+        if self.previous.lexeme == "init" {
+            type_ = FunctionType::TYPE_INITIALIZER;
+        }
+        self.function(type_);
+        self.emit_bytes(OpCode::OP_METHOD as u8, constant as u8);
+    }
     fn class_declaration(&mut self) {
         self.consume(TokenType::TOKEN_IDENTIFIER, "Expect class name.".to_owned());
         let class_name = self.previous.clone();
         let name_constant = self.identifier_constant(self.previous.clone());
-        //self.declare_variable() TODO
+        self.declare_variable();
         self.emit_bytes(OpCode::OP_CLASS as u8, name_constant as u8);
-        //self.define_variable(name_constant) TODO
-        let mut class_compiler = ClassCompiler {
+        self.define_variable(name_constant);
+        let class_compiler = ClassCompiler {
             enclosing: self.class_compiler.clone(),
             has_super_class: false,
         };
@@ -570,8 +733,8 @@ impl<'a> Compiler<'a> {
             if class_name == self.previous {
                 self.error("A class can't ingerit from itself".to_owned());
             }
-            // self.begin_scope() TODO
-            // self.define_variable(0) TODO
+            self.begin_scope();
+            self.define_variable(0);
             self.named_variable(class_name.clone(), false);
             self.emit_byte(OpCode::OP_INHERIT as u8);
             // self.class_compiler.unwrap().has_super_class = true;  TODO
@@ -582,7 +745,7 @@ impl<'a> Compiler<'a> {
             "Expect '{' before class body.".to_owned(),
         );
         while self.check(TokenType::TOKEN_RIGHT_BRACE) && !self.check(TokenType::TOKEN_EOF) {
-            //self.method(); TODO
+            self.method();
         }
         self.consume(
             TokenType::TOKEN_RIGHT_BRACE,
@@ -590,19 +753,19 @@ impl<'a> Compiler<'a> {
         );
         self.emit_byte(OpCode::OP_POP as u8);
         if self.class_compiler.clone().unwrap().has_super_class {
-            //self.end_scope(); TODO
+            self.end_scope();
         }
         self.class_compiler = self.class_compiler.clone().unwrap().enclosing;
     }
     fn declaration(&mut self) {
         if self.match_token(TokenType::TOKEN_CLASS) {
-            //self.class_declaration(); TODO
+            self.class_declaration();
         } else if self.match_token(TokenType::TOKEN_FUN) {
-            //self.function_declaration(); TODO
+            self.function_declaration(); //TODO
         } else if self.match_token(TokenType::TOKEN_VAR) {
-            // self.var_declaration(); TODO
+            self.var_declaration(); //TODO
         } else {
-            // self.statement() TODO
+            self.statement() //TODO
         }
         if self.panic_mode {
             self.synchronize()

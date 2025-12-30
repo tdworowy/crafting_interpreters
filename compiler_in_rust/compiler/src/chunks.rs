@@ -40,7 +40,7 @@ pub enum OpCode {
     OP_GET_SUPER,
     OP_SUPER_INVOKE,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Chunk {
     pub count: i32,
     pub capacity: i32,
