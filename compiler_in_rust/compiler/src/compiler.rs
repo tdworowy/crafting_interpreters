@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ptr::fn_addr_eq};
+use std::collections::HashMap;
 
 use crate::{
     chunks::{Chunk, OpCode},
@@ -655,6 +655,11 @@ impl Compiler {
             }
         }
     }
+    fn end_compiler(&mut self) -> ObjFunction {
+        self.emit_return();
+        let function = self.function.clone();
+        return *function;
+    }
     fn parse_variable(&mut self, error_masage: String) -> isize {
         self.consume(TokenType::TOKEN_IDENTIFIER, error_masage);
         self.declare_variable();
@@ -664,7 +669,146 @@ impl Compiler {
             return self.identifier_constant(self.previous.clone());
         }
     }
-    fn function(&self, function_type: FunctionType) {
+    fn expression_statement(&mut self) {
+        self.expression();
+        self.consume(
+            TokenType::TOKEN_SEMICOLON,
+            "Expect ';' after expression.".to_owned(),
+        );
+        self.emit_byte(OpCode::OP_POP as u8);
+    }
+    fn return_statement(&mut self) {
+        if self.function_type == FunctionType::TYPE_SCRIPT {
+            self.error("Can't return from top-level code.".to_owned());
+        }
+        if self.match_token(TokenType::TOKEN_SEMICOLON) {
+            self.emit_return();
+        } else {
+            if self.function_type == FunctionType::TYPE_INITIALIZER {
+                self.error("Can't return a value from an initializer.".to_owned());
+            }
+            self.expression();
+            self.consume(
+                TokenType::TOKEN_SEMICOLON,
+                "Expect ';' after return value.".to_owned(),
+            );
+            self.emit_byte(OpCode::OP_RETURN as u8);
+        }
+    }
+    fn print_statement(&mut self) {
+        self.expression();
+        self.consume(
+            TokenType::TOKEN_SEMICOLON,
+            "Expect ';' after value.".to_owned(),
+        );
+        self.emit_byte(OpCode::OP_PRINT as u8);
+    }
+    fn if_statement(&mut self) {
+        self.consume(
+            TokenType::TOKEN_LEFT_PAREN,
+            "Expect '(' after if.".to_owned(),
+        );
+        self.expression();
+        self.consume(
+            TokenType::TOKEN_RIGHT_PAREN,
+            "Expect ')' after condition.".to_owned(),
+        );
+        let then_jump = self.emit_jump(OpCode::OP_JUMP_IF_FALSE as u8);
+        self.emit_byte(OpCode::OP_POP as u8);
+        self.statement();
+        let else_jump = self.emit_jump(OpCode::OP_JUMP as u8);
+        self.patch_junp(then_jump);
+        self.emit_byte(OpCode::OP_POP as u8);
+        if self.match_token(TokenType::TOKEN_ELSE) {
+            self.statement();
+        }
+        self.patch_junp(else_jump);
+    }
+    fn emit_loop(&mut self, loop_start: i32) {
+        self.emit_byte(OpCode::OP_LOOP as u8);
+        let offset = self.current_chunk().count - loop_start + 2;
+        self.emit_byte(((offset >> 8) & 0xFF) as u8);
+        self.emit_byte((offset & 0xFF) as u8);
+    }
+    fn for_statement(&mut self) {
+        self.begin_scope();
+        self.consume(
+            TokenType::TOKEN_LEFT_PAREN,
+            "Expect '(' after 'for'.".to_owned(),
+        );
+        if self.match_token(TokenType::TOKEN_SEMICOLON) {
+        } else if self.match_token(TokenType::TOKEN_VAR) {
+            self.var_declaration();
+        } else {
+            self.expression_statement();
+        }
+        let mut loop_start = self.current_chunk().count;
+        let exit_jump = -1;
+        if !self.match_token(TokenType::TOKEN_SEMICOLON) {
+            self.expression();
+            self.consume(TokenType::TOKEN_SEMICOLON, "Expect ';'.".to_owned());
+            let exit_jump = self.emit_jump(OpCode::OP_JUMP_IF_FALSE as u8);
+            self.emit_byte(OpCode::OP_POP as u8);
+        }
+        if !self.match_token(TokenType::TOKEN_RIGHT_PAREN) {
+            let body_jump = self.emit_jump(OpCode::OP_JUMP as u8);
+            let increment_start = self.current_chunk().count;
+            self.expression();
+            self.emit_byte(OpCode::OP_POP as u8);
+            self.consume(
+                TokenType::TOKEN_RIGHT_PAREN,
+                "Expect ')' after for clauses.".to_owned(),
+            );
+            self.emit_loop(loop_start);
+            loop_start = increment_start;
+            self.patch_junp(body_jump);
+        }
+        self.statement();
+        self.emit_loop(loop_start);
+        if exit_jump != -1 {
+            self.patch_junp(exit_jump);
+            self.emit_byte(OpCode::OP_POP as u8);
+        }
+        self.end_scope();
+    }
+    fn while_statement(&mut self) {
+        let loop_start = self.current_chunk().count;
+        self.consume(
+            TokenType::TOKEN_LEFT_PAREN,
+            "Expect '(' after 'while'.".to_owned(),
+        );
+        self.expression();
+        self.consume(
+            TokenType::TOKEN_RIGHT_PAREN,
+            "Expect ')' after condition.".to_owned(),
+        );
+        let exit_jomp = self.emit_jump(OpCode::OP_JUMP_IF_FALSE as u8);
+        self.emit_byte(OpCode::OP_POP as u8);
+        self.statement();
+        self.emit_loop(loop_start);
+        self.patch_junp(exit_jomp);
+        self.emit_byte(OpCode::OP_POP as u8);
+    }
+    fn statement(&mut self) {
+        if self.match_token(TokenType::TOKEN_PRINT) {
+            self.print_statement();
+        } else if self.match_token(TokenType::TOKEN_IF) {
+            self.if_statement();
+        } else if self.match_token(TokenType::TOKEN_WHILE) {
+            self.while_statement();
+        } else if self.match_token(TokenType::TOKEN_FOR) {
+            self.for_statement();
+        } else if self.match_token(TokenType::TOKEN_LEFT_BRACE) {
+            self.begin_scope();
+            self.block();
+            self.end_scope();
+        } else if self.match_token(TokenType::TOKEN_RETURN) {
+            self.return_statement();
+        } else {
+            self.expression_statement();
+        }
+    }
+    fn function(&mut self, function_type: FunctionType) {
         let mut compiler =
             Compiler::new(self.enclosing.clone(), self.scanner.clone(), function_type);
         compiler.begin_scope();
@@ -691,12 +835,17 @@ impl Compiler {
             "Expect '{' before function body.".to_owned(),
         );
         compiler.block();
-        let function: ObjFunction = compiler.end_compiler(); // TODO
-        self.emit_bytes(OpCode::OP_CLOSURE as u8, self.make_constant(function) as u8);
+        let function: ObjFunction = compiler.end_compiler();
+        let constant = self.make_constant(function.name);
+        self.emit_bytes(OpCode::OP_CLOSURE as u8, constant as u8);
         for i in 0..function.upvalue_count {
-            let is_local_byte = if compiler.upvalues[i].is_local { 1 } else { 0 };
+            let is_local_byte = if compiler.upvalues[i as usize].is_local {
+                1
+            } else {
+                0
+            };
             self.emit_byte(is_local_byte);
-            self.emit_byte(compiler.upvalues[i].index as u8);
+            self.emit_byte(compiler.upvalues[i as usize].index as u8);
         }
     }
     fn method(&mut self) {
@@ -711,6 +860,25 @@ impl Compiler {
         }
         self.function(type_);
         self.emit_bytes(OpCode::OP_METHOD as u8, constant as u8);
+    }
+    fn function_declaration(&mut self) {
+        let global = self.parse_variable("Expect function name".to_owned());
+        self.mark_initialized();
+        self.function(FunctionType::TYPE_FUNCTION);
+        self.define_variable(global);
+    }
+    fn var_declaration(&mut self) {
+        let global = self.parse_variable("Expect variable name".to_owned());
+        if self.match_token(TokenType::TOKEN_EQUAL) {
+            self.expression();
+        } else {
+            self.emit_byte(OpCode::OP_NIL as u8);
+        }
+        self.consume(
+            TokenType::TOKEN_SEMICOLON,
+            "Expect ';' after expression.".to_owned(),
+        );
+        self.define_variable(global);
     }
     fn class_declaration(&mut self) {
         self.consume(TokenType::TOKEN_IDENTIFIER, "Expect class name.".to_owned());
@@ -737,7 +905,9 @@ impl Compiler {
             self.define_variable(0);
             self.named_variable(class_name.clone(), false);
             self.emit_byte(OpCode::OP_INHERIT as u8);
-            // self.class_compiler.unwrap().has_super_class = true;  TODO
+            let mut class_compiler_tmp = self.class_compiler.clone().unwrap();
+            class_compiler_tmp.has_super_class = true;
+            self.class_compiler = Some(class_compiler_tmp.clone());
         }
         self.named_variable(class_name.clone(), false);
         self.consume(
@@ -761,11 +931,11 @@ impl Compiler {
         if self.match_token(TokenType::TOKEN_CLASS) {
             self.class_declaration();
         } else if self.match_token(TokenType::TOKEN_FUN) {
-            self.function_declaration(); //TODO
+            self.function_declaration();
         } else if self.match_token(TokenType::TOKEN_VAR) {
-            self.var_declaration(); //TODO
+            self.var_declaration();
         } else {
-            self.statement() //TODO
+            self.statement();
         }
         if self.panic_mode {
             self.synchronize()
@@ -780,4 +950,14 @@ impl Compiler {
             "Expect '}' after block.".to_owned(),
         );
     }
+    fn compile(&mut self, source: String) -> ObjFunction {
+        let scaner = Scanner::new(source);
+        self.advance();
+        while self.match_token(TokenType::TOKEN_EOF) {
+            self.declaration();
+        }
+        let function = self.end_compiler();
+        return function;
+    }
 }
+// TODO add unit tests
