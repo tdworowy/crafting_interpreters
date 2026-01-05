@@ -1,7 +1,11 @@
-use crate::grow_capacity;
-
+#[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum OpCode {
+    Constant(isize),
+    DefineGlobal(isize),
+    Jump(i16),
+    JumpIfFalse(i16),
+    Loop(i16),
     OP_CONSTANT,
     OP_NIL,
     OP_TRUE,
@@ -40,11 +44,10 @@ pub enum OpCode {
     OP_GET_SUPER,
     OP_SUPER_INVOKE,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Chunk {
     pub count: i32,
-    pub capacity: i32,
-    pub code: Vec<u8>,
+    pub code: Vec<OpCode>,
     pub lines: Vec<usize>,
     pub constants: Vec<String>,
 }
@@ -53,24 +56,19 @@ impl Chunk {
     pub fn new() -> Self {
         Self {
             count: 0,
-            capacity: 0,
             code: Vec::new(),
             lines: Vec::new(),
             constants: Vec::new(),
         }
     }
-    pub fn write_chunk(&mut self, byte: u8, line: usize) {
-        if self.capacity < self.count + 1 {
-            self.capacity = grow_capacity!(self.capacity);
-            self.code.resize(self.capacity as usize, 0);
-            self.lines.resize(self.capacity as usize, 0);
-        }
-        self.code[self.count as usize] = byte;
-        self.lines[self.count as usize] = line;
+    pub fn write_chunk(&mut self, byte: OpCode, line: usize) {
+        self.code.push(byte);
+        self.lines.push(line);
         self.count += 1;
     }
-    pub fn add_constant(&mut self, value: String) {
+    pub fn add_constant(&mut self, value: String) -> isize {
         self.constants.push(value);
+        self.constants.len() as isize - 1
     }
 }
 
@@ -83,14 +81,18 @@ impl Default for Chunk {
 #[test]
 fn test_chunk() {
     let mut chunk = Chunk::new();
-    chunk.write_chunk(10, 122);
+    chunk.write_chunk(OpCode::OP_ADD, 1);
+    chunk.write_chunk(OpCode::OP_CALL, 2);
+    chunk.write_chunk(OpCode::OP_CLOSURE, 3);
 
     let strings: Vec<String> = Vec::new();
 
-    assert_eq!(chunk.count, 1);
-    assert_eq!(chunk.capacity, 8);
-    assert_eq!(chunk.code, vec![10, 0, 0, 0, 0, 0, 0, 0]);
-    assert_eq!(chunk.lines, vec![122, 0, 0, 0, 0, 0, 0, 0]);
+    assert_eq!(chunk.count, 3);
+    assert_eq!(
+        chunk.code,
+        vec![OpCode::OP_ADD, OpCode::OP_CALL, OpCode::OP_CLOSURE]
+    );
+    assert_eq!(chunk.lines, vec![1, 2, 3]);
     assert_eq!(chunk.constants, strings);
     chunk.add_constant("123".to_owned());
     assert_eq!(chunk.constants, vec!["123"]);

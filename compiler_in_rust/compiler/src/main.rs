@@ -10,6 +10,6 @@ fn main() {
     // TESTING
     let mut chunk = Chunk::new();
     let mut vm = VM::new();
-    chunk.write_chunk(10, 122);
+    chunk.write_chunk(chunks::OpCode::OP_ADD, 122);
     println!("{:?}", chunk);
 }
