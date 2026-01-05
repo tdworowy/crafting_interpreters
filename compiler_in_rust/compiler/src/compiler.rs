@@ -798,7 +798,7 @@ impl Compiler {
         }
     }
     fn function(&mut self, function_type: FunctionType) {
-        let mut compiler = Compiler::new(self.enclosing.clone(), function_type);
+        let mut compiler = Compiler::new(Some(Box::new(self.clone())), function_type);
         compiler.begin_scope();
         compiler.consume(
             TokenType::TOKEN_LEFT_PAREN,
@@ -1012,6 +1012,33 @@ mod tests {
             count: 4,
         };
         let source = "print \"test\";".to_owned();
+        let mut compiler = Compiler::new(None, FunctionType::TYPE_SCRIPT);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+        assert_eq!(chunk, &expected_chunk);
+    }
+
+    #[test]
+    fn test_function() {
+        //TODO fix it
+        let expected_chunk = Chunk {
+            code: vec![
+                OpCode::Constant(0),
+                OpCode::OP_PRINT,
+                OpCode::OP_NIL,
+                OpCode::OP_RETURN,
+            ],
+            lines: vec![1, 1, 1, 1],
+            constants: vec!["test".into()],
+            count: 4,
+        };
+        let source = "fun test(x) {
+                                var y = 2 + x;
+                                return y;
+                            }
+                            print test(10);
+        "
+        .to_owned();
         let mut compiler = Compiler::new(None, FunctionType::TYPE_SCRIPT);
         compiler.compile(source);
         let chunk = compiler.current_chunk();
