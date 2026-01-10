@@ -3,9 +3,20 @@
 pub enum OpCode {
     Constant(isize),
     DefineGlobal(isize),
+    DefineLocal(isize),
+    SetGlobal(isize),
+    SetLocal(isize),
+    GetGlobal(isize),
+    GetLocal(isize),
+    GetUpvalue(isize),
+    SetUpvalue(isize),
+    Call(isize),
+    Invoke(isize, isize),
+    SuperInvoke(isize, isize),
     Jump(i16),
     JumpIfFalse(i16),
     Loop(i16),
+    Closure(isize),
     OP_CONSTANT,
     OP_NIL,
     OP_TRUE,
@@ -21,20 +32,8 @@ pub enum OpCode {
     OP_NEGATE,
     OP_RETURN,
     OP_PRINT,
-    OP_JUMP,
-    OP_JUMP_IF_FALSE,
     OP_POP,
     OP_DEFINE_GLOBAL,
-    OP_GET_LOCAL,
-    OP_SET_LOCAL,
-    OP_GET_GLOBAL,
-    OP_SET_GLOBAL,
-    OP_GET_UPVALUE,
-    OP_SET_UPVALUE,
-    OP_CLOSE_UPVALUE,
-    OP_LOOP,
-    OP_CALL,
-    OP_CLOSURE,
     OP_CLASS,
     OP_SET_PROPERTY,
     OP_GET_PROPERTY,
@@ -42,7 +41,8 @@ pub enum OpCode {
     OP_INVOKE,
     OP_INHERIT,
     OP_GET_SUPER,
-    OP_SUPER_INVOKE,
+    OP_CLOSE_UPVALUE,
+    OP_NOP,
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct Chunk {
@@ -78,19 +78,20 @@ impl Default for Chunk {
     }
 }
 
+// TODO better tests
 #[test]
 fn test_chunk() {
     let mut chunk = Chunk::new();
     chunk.write_chunk(OpCode::OP_ADD, 1);
-    chunk.write_chunk(OpCode::OP_CALL, 2);
-    chunk.write_chunk(OpCode::OP_CLOSURE, 3);
+    chunk.write_chunk(OpCode::OP_POP, 2);
+    chunk.write_chunk(OpCode::OP_ADD, 3);
 
     let strings: Vec<String> = Vec::new();
 
     assert_eq!(chunk.count, 3);
     assert_eq!(
         chunk.code,
-        vec![OpCode::OP_ADD, OpCode::OP_CALL, OpCode::OP_CLOSURE]
+        vec![OpCode::OP_ADD, OpCode::OP_POP, OpCode::OP_ADD]
     );
     assert_eq!(chunk.lines, vec![1, 2, 3]);
     assert_eq!(chunk.constants, strings);
