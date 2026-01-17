@@ -1,3 +1,35 @@
+use crate::object::ObjFunction;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Value {
+    Number(f64),
+    Bool(bool),
+    Nil,
+    String(String),
+    Function(Box<ObjFunction>),
+}
+
+impl From<String> for Value {
+    fn from(s: String) -> Self {
+        Value::String(s)
+    }
+}
+
+impl From<&str> for Value {
+    fn from(s: &str) -> Self {
+        Value::String(s.to_string())
+    }
+}
+
+impl Value {
+    pub fn as_function(&self) -> &ObjFunction {
+        match self {
+            Value::Function(f) => f,
+            _ => panic!("Expected function, found {:?}", self),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum OpCode {
@@ -17,39 +49,39 @@ pub enum OpCode {
     JumpIfFalse(i16),
     Loop(i16),
     Closure(isize),
-    OP_CONSTANT,
-    OP_NIL,
-    OP_TRUE,
-    OP_FALSE,
-    OP_ADD,
-    OP_SUBTRACT,
-    OP_MULTIPLY,
-    OP_DIVIDE,
-    OP_NOT,
-    OP_EQUAL,
-    OP_GREATER,
-    OP_LESS,
-    OP_NEGATE,
-    OP_RETURN,
-    OP_PRINT,
-    OP_POP,
-    OP_DEFINE_GLOBAL,
-    OP_CLASS,
-    OP_SET_PROPERTY,
-    OP_GET_PROPERTY,
-    OP_METHOD,
-    OP_INVOKE,
-    OP_INHERIT,
-    OP_GET_SUPER,
-    OP_CLOSE_UPVALUE,
-    OP_NOP,
+    OpConstant,
+    OpNil,
+    OpTrue,
+    OpFalse,
+    OpAdd,
+    OpSubtract,
+    OpMultiply,
+    OpDivide,
+    OpNot,
+    OpEqual,
+    OpGreater,
+    OpLess,
+    OpNegate,
+    OpReturn,
+    OpPrint,
+    OpPop,
+    OpDefineGlobal,
+    OpClass,
+    OpSetProperty,
+    OpGetProperty,
+    OpMethod,
+    OpInvoke,
+    OpInherit,
+    OpGetSuper,
+    OpCloseUpvalue,
+    OpNop,
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct Chunk {
     pub count: i32,
     pub code: Vec<OpCode>,
     pub lines: Vec<usize>,
-    pub constants: Vec<String>,
+    pub constants: Vec<Value>,
 }
 
 impl Chunk {
@@ -66,7 +98,7 @@ impl Chunk {
         self.lines.push(line);
         self.count += 1;
     }
-    pub fn add_constant(&mut self, value: String) -> isize {
+    pub fn add_constant(&mut self, value: Value) -> isize {
         self.constants.push(value);
         self.constants.len() as isize - 1
     }
@@ -82,19 +114,19 @@ impl Default for Chunk {
 #[test]
 fn test_chunk() {
     let mut chunk = Chunk::new();
-    chunk.write_chunk(OpCode::OP_ADD, 1);
-    chunk.write_chunk(OpCode::OP_POP, 2);
-    chunk.write_chunk(OpCode::OP_ADD, 3);
+    chunk.write_chunk(OpCode::OpAdd, 1);
+    chunk.write_chunk(OpCode::OpPop, 2);
+    chunk.write_chunk(OpCode::OpAdd, 3);
 
-    let strings: Vec<String> = Vec::new();
+    let values: Vec<Value> = Vec::new();
 
     assert_eq!(chunk.count, 3);
     assert_eq!(
         chunk.code,
-        vec![OpCode::OP_ADD, OpCode::OP_POP, OpCode::OP_ADD]
+        vec![OpCode::OpAdd, OpCode::OpPop, OpCode::OpAdd]
     );
     assert_eq!(chunk.lines, vec![1, 2, 3]);
-    assert_eq!(chunk.constants, strings);
-    chunk.add_constant("123".to_owned());
-    assert_eq!(chunk.constants, vec!["123"]);
+    assert_eq!(chunk.constants, values);
+    chunk.add_constant(Value::String("123".to_owned()));
+    assert_eq!(chunk.constants, vec![Value::String("123".to_owned())]);
 }

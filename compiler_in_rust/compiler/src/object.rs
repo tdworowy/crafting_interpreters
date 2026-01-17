@@ -1,22 +1,22 @@
 use crate::chunks::Chunk;
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ObjType {
-    OBJ_STRING,
-    OBJ_CLOSURE,
-    OBJ_FUNCTION,
-    OBJ_NATIVE,
-    OBJ_UPVALUE,
-    OBJ_CLASS,
-    OBJ_INSTANCE,
-    OBJ_BOUND_METHOD,
+    ObjString,
+    ObjClosure,
+    ObjFunction,
+    ObjNative,
+    ObjUpvalue,
+    ObjClass,
+    ObjInstance,
+    ObjBoundMethod,
 }
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Obj {
     obj_type: ObjType,
     is_marked: bool,
     next: Option<Box<Obj>>,
 }
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ObjFunction {
     obj: Box<Obj>,
     pub arity: usize,
@@ -29,7 +29,7 @@ impl ObjFunction {
     pub fn new() -> Self {
         ObjFunction {
             obj: Box::new(Obj {
-                obj_type: ObjType::OBJ_FUNCTION,
+                obj_type: ObjType::ObjFunction,
                 is_marked: false,
                 next: None,
             }),
