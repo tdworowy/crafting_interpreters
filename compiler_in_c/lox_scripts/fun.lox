@@ -1,6 +1,5 @@
-fun test(a) {
- a = a + 1;
- print a;
- return a;
+fun test(x) {
+  var y = 2 + x;
+  return y;
 }
 print test(10);

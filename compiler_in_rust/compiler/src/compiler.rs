@@ -4,7 +4,7 @@ use crate::chunks::Value;
 use crate::{
     chunks::{Chunk, OpCode},
     object::ObjFunction,
-    scaner::{self, Scanner, Token, TokenType},
+    scaner::{Scanner, Token, TokenType},
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -284,7 +284,7 @@ impl Compiler {
         self.previous = self.current.clone();
         loop {
             self.current = self.scanner.as_mut().unwrap().scan_token();
-            if (self.current.token_type != TokenType::TokenError) {
+            if self.current.token_type != TokenType::TokenError {
                 break;
             } else {
                 self.error_at_current(self.current.lexeme.clone());
@@ -444,16 +444,15 @@ impl Compiler {
         });
     }
     fn add_upvalue(&mut self, index: isize, is_local: bool) -> isize {
-        let upvalue_count = self.function.upvalue_count;
-        for i in 0..upvalue_count {
-            let upvalue = &self.upvalues[i as usize];
+        for (i, upvalue) in self.upvalues.iter().enumerate() {
             if upvalue.index == index && upvalue.is_local == is_local {
-                return i;
+                return i as isize;
             }
         }
-        self.upvalues[upvalue_count as usize].is_local = is_local;
-        self.upvalues[upvalue_count as usize].index = index;
-        return self.function.upvalue_count + 1;
+
+        self.upvalues.push(Upvalue { index, is_local });
+        self.function.upvalue_count = self.upvalues.len() as isize;
+        (self.upvalues.len() - 1) as isize
     }
     fn resolve_upvalue(&mut self, name: Token) -> isize {
         if let Some(enclosing) = &mut self.enclosing {
@@ -654,17 +653,25 @@ impl Compiler {
     }
     fn end_scope(&mut self) {
         self.scope_depth -= 1;
-        for local in self.locals.clone() {
-            if local.depth > self.scope_depth && local.is_captured {
-                self.emit_byte(OpCode::OpCloseUpvalue);
+        while let Some(local) = self.locals.last() {
+            if local.depth <= self.scope_depth {
+                break;
             }
-            if local.depth > self.scope_depth && !local.is_captured {
+
+            if local.is_captured {
+                self.emit_byte(OpCode::OpCloseUpvalue);
+            } else {
                 self.emit_byte(OpCode::OpPop);
             }
+
+            self.locals.pop();
         }
     }
     fn end_compiler(&mut self) -> ObjFunction {
-        self.emit_return();
+        let ends_with_return = matches!(self.current_chunk().code.last(), Some(OpCode::OpReturn));
+        if !ends_with_return {
+            self.emit_return();
+        }
         let function = self.function.clone();
         return *function;
     }
@@ -865,10 +872,6 @@ impl Compiler {
             let is_local_byte = if upvalue.is_local { 1 } else { 0 };
             self.emit_byte(OpCode::Constant(is_local_byte));
             self.emit_byte(OpCode::Constant(upvalue.index));
-        }
-        if function_type == FunctionType::TypeFunction {
-            let name_constant = self.identifier_constant_once(&self.synthetic_token(function_name));
-            self.define_variable(name_constant);
         }
     }
     fn method(&mut self) {
@@ -1113,20 +1116,15 @@ mod tests {
     fn test_function() {
         let expected_inner_chunk = Chunk {
             code: vec![
-                // var y = 2 + x;
                 OpCode::Constant(0), // "2"
                 OpCode::GetLocal(1), // x
                 OpCode::OpAdd,
-                // return y;
                 OpCode::GetLocal(2), // y
                 OpCode::OpReturn,
-                // implicit return from end_compiler, should it be here ?
-                OpCode::OpNil,
-                OpCode::OpReturn,
             ],
-            lines: vec![2, 2, 2, 3, 3, 4, 4],
+            lines: vec![2, 2, 2, 3, 3],
             constants: vec![Value::Number(2f64)],
-            count: 7,
+            count: 5,
         };
         let mut internal_fn = ObjFunction::new();
         internal_fn.name = "test".to_string();
@@ -1149,7 +1147,7 @@ mod tests {
             ],
             lines: vec![4, 4, 5, 5, 5, 5, 5, 5],
             constants: vec![],
-            count: 7,
+            count: 8,
         };
         expected_chunk.constants = vec![
             Value::Function(Box::new(internal_fn)),
