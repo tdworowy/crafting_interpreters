@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TypeVar, Any
+from typing import Any, TypeVar
 
 from src.token_ import Token
 

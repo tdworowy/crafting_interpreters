@@ -1,10 +1,8 @@
-from typing import Optional
-
 from src.environment import Environment
 from src.expr import FunctionExpr
+from src.lox_callable import LoxCallable
 from src.lox_instance import LoxInstance
 from src.return_exception import ReturnException
-from src.lox_callable import LoxCallable
 from src.stmt import FunctionStmt
 from src.token_ import Token
 
@@ -12,7 +10,7 @@ from src.token_ import Token
 class LoxFunction(LoxCallable):
     def __init__(
         self,
-        name: Optional[str],
+        name: str | None,
         declaration: FunctionExpr | FunctionStmt,
         closure: Environment,
         is_initializer: bool = False,

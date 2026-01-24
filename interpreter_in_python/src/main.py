@@ -1,8 +1,12 @@
+from pathlib import Path
+
 from src.lox import Lox
+
+current_dir = Path(__file__).parent.resolve()
 
 
 def main():
-    with open("../lox_scripts/echo.lox") as f:
+    with (current_dir / "../../tests/lox_scripts/break_test.lox").open(mode="r") as f:
         source = f.read()
         Lox().run(source=source, repl=False)
 

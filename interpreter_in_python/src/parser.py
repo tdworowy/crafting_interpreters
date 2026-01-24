@@ -1,31 +1,31 @@
 from src.expr import (
     Assign,
     Binary,
-    Expr,
-    Grouping,
-    Literal,
-    Unary,
-    Variable,
-    Logical,
     Call,
+    Expr,
     FunctionExpr,
     Get,
+    Grouping,
+    Literal,
+    Logical,
     Set,
-    This,
     Super,
+    This,
+    Unary,
+    Variable,
 )
 from src.stmt import (
     Block,
+    Break,
+    Class,
     Expression,
+    FunctionStmt,
+    If,
     Print,
+    Return,
     Stmt,
     Var,
-    If,
     While,
-    Break,
-    FunctionStmt,
-    Return,
-    Class,
 )
 from src.token_ import Token, TokenType
 
@@ -313,7 +313,7 @@ class Parser:
             else:
                 self.get_parsing_error(
                     token=equals,
-                    message=f"Invalid assignment target.",
+                    message="Invalid assignment target.",
                 )
         else:
             return expr
@@ -381,7 +381,7 @@ class Parser:
         elif self.match(tokens_types=[TokenType.PLUS, TokenType.STAR, TokenType.SLASH]):
             raise self.get_parsing_error(
                 token=self.previous(),
-                message=f"Binary operator without left-hand operand",
+                message="Binary operator without left-hand operand",
             )
         return self.call()
 
@@ -452,7 +452,7 @@ class Parser:
 
         raise self.get_parsing_error(
             token=self.peek(),
-            message=f"Expected expression.",
+            message="Expected expression.",
         )
 
     def match(self, tokens_types: list[TokenType]) -> bool:
@@ -460,8 +460,7 @@ class Parser:
             if self.check(token):
                 self.advance()
                 return True
-        else:
-            return False
+        return False
 
     def check(self, token_type: TokenType) -> bool:
         if self.is_at_end():

@@ -11,7 +11,7 @@ class LoxInstance:
         self.fields = {}
 
     def get(self, name: Token) -> Any:
-        if name.lexeme in self.fields.keys():
+        if name.lexeme in self.fields:
             return self.fields[name.lexeme]
 
         method = self.klass.find_method(name=name.lexeme)

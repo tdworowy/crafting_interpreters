@@ -1,5 +1,4 @@
 import pytest
-
 from src.expr import Binary, Literal
 from src.interpreter import Interpreter
 from src.run_time_exception import RunTimeException

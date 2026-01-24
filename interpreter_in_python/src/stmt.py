@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TypeVar
 
-from src.expr import Expr, Variable, FunctionExpr
+from src.expr import Expr, FunctionExpr, Variable
 from src.token_ import Token
 
 T = TypeVar("T")

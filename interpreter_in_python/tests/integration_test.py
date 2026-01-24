@@ -1,8 +1,10 @@
 from functools import cache
+from pathlib import Path
 
 import pytest
-
 from src.lox import Lox
+
+current_dir = Path(__file__).parent.resolve()
 
 
 @cache
@@ -15,7 +17,7 @@ def fib(n: int) -> int:
     elif n == 1:
         return b
     else:
-        for i in range(1, n):
+        for _ in range(1, n):
             c = a + b
             a = b
             b = c
@@ -48,7 +50,7 @@ tests = [
     tests,
 )
 def test_lox(file_name: str, expected_result: str, capsys: pytest.CaptureFixture[str]):
-    with open(file_name) as f:
+    with (current_dir / file_name).open(mode="r") as f:
         source = f.read()
         Lox().run(source=source, repl=True)
         captured = capsys.readouterr()

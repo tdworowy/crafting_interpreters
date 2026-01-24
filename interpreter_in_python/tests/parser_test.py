@@ -1,11 +1,10 @@
 import pytest
-
-from src.ast_printer import AstPrinter
 from src.expr import Binary, Literal
 from src.parser import Parser
 from src.scanner import Scanner
 from src.stmt import Expression
 from src.token_ import Token, TokenType
+
 from tests.utils import compare_ast
 
 
@@ -41,12 +40,12 @@ def test_parser_binary_without_left():
 
 @pytest.mark.skip("difference is ok.")
 def test_compare_loops():
-    with open("lox_scripts/for.lox") as for_file:
+    with open("./lox_scripts/for.lox") as for_file:
         scanner_for = Scanner(source=for_file.read())
         tokens_for = scanner_for.scan_tokens()
         parsed_for = Parser(tokens=tokens_for).parse()
 
-    with open("lox_scripts/while.lox") as while_file:
+    with open("./lox_scripts/while.lox") as while_file:
         scanner_while = Scanner(source=while_file.read())
         tokens_while = scanner_while.scan_tokens()
         parsed_while = Parser(tokens=tokens_while).parse()

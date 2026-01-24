@@ -8,7 +8,7 @@ def test_scan_tokens():
     * ()
     /
     // test test
-    /* test test 
+    /* test test
     test test */
     /
     "test"

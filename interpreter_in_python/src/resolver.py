@@ -1,26 +1,25 @@
 from enum import Enum, auto
 
 from src.expr import (
-    VisitorExpr,
-    T,
-    Variable,
-    This,
-    Unary,
-    Super,
-    Set,
-    Logical,
-    Literal,
-    Grouping,
-    Get,
-    Call,
-    Binary,
     Assign,
+    Binary,
+    Call,
     Expr,
     FunctionExpr,
+    Get,
+    Grouping,
+    Literal,
+    Logical,
+    Set,
+    Super,
+    T,
+    This,
+    Unary,
+    Variable,
+    VisitorExpr,
 )
 from src.interpreter import Interpreter
 from src.stmt import (
-    VisitorStmt,
     Block,
     Break,
     Class,
@@ -29,9 +28,10 @@ from src.stmt import (
     If,
     Print,
     Return,
-    Var,
-    While,
     Stmt,
+    Var,
+    VisitorStmt,
+    While,
 )
 from src.token_ import Token
 
@@ -164,7 +164,7 @@ class Resolver(VisitorExpr, VisitorStmt):
     def declare(self, name: Token):
         if not self.scopes:
             return
-        if name in self.scopes[-1].keys():
+        if name in self.scopes[-1]:
             print("Already a variable with this name is this scope.")
             self.had_error = True
             return
@@ -191,13 +191,13 @@ class Resolver(VisitorExpr, VisitorStmt):
     def resolve_local(self, expr: Expr, name: Token):
         i = len(self.scopes)
         for scope in reversed(self.scopes):
-            if name.lexeme in scope.keys():
+            if name.lexeme in scope:
                 self.interpreter.resolve(expr=expr, depth=len(self.scopes) - i)
             i -= 1
 
     def visit_this_expr(self, expr: "This") -> None:
         if self.current_class == ClassType.NONE:
-            print(f"Can't use 'this' outside of class.")
+            print("Can't use 'this' outside of class.")
             self.had_error = True
             return
         self.resolve_local(expr=expr, name=expr.keyword)
@@ -207,11 +207,11 @@ class Resolver(VisitorExpr, VisitorStmt):
 
     def visit_super_expr(self, expr: "Super") -> None:
         if self.current_class == ClassType.NONE:
-            print(f"Can't use 'super' outside of class.")
+            print("Can't use 'super' outside of class.")
             self.had_error = True
             return
         elif self.current_class != ClassType.SUBCLASS:
-            print(f"Can't use 'super' in class with no superclass.")
+            print("Can't use 'super' in class with no superclass.")
             self.had_error = True
             return
 

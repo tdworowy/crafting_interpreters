@@ -5,6 +5,7 @@ from src.expr import (
     Binary,
     Call,
     Expr,
+    FunctionExpr,
     Get,
     Grouping,
     Literal,
@@ -63,6 +64,9 @@ class AstPrinter(VisitorExpr):
 
     def visit_variable_expr(self, expr: Variable) -> T:
         return expr.name.lexeme
+
+    def visit_function_expr(self, expr: FunctionExpr):
+        return "FunctionExpr"
 
     def parenthesize1(self, name: str, *exprs) -> str:
         result = f"({name}"

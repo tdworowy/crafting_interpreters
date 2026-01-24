@@ -1,7 +1,7 @@
 from typing import Any
 
 
-def compare_ast(node1: Any, node2: Any, ignore_types: set | None = None) -> bool:
+def compare_ast(node1: Any, node2: Any, ignore_types: set[Any] | None = None) -> bool:
     if ignore_types is None:
         ignore_types = set()
 
@@ -12,7 +12,7 @@ def compare_ast(node1: Any, node2: Any, ignore_types: set | None = None) -> bool
         return False
 
     if isinstance(node1, (int, float, str, bool)):
-        return node1 == node2
+        return bool(node1 == node2)
 
     if isinstance(node1, list):
         if len(node1) != len(node2):

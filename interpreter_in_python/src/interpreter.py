@@ -9,6 +9,7 @@ from src.expr import (
     Binary,
     Call,
     Expr,
+    FunctionExpr,
     Get,
     Grouping,
     Literal,
@@ -20,17 +21,16 @@ from src.expr import (
     Unary,
     Variable,
     VisitorExpr,
-    FunctionExpr,
 )
 from src.lox_callable import LoxCallable
 from src.lox_class import LoxClass
 from src.lox_function import LoxFunction
 from src.lox_instance import LoxInstance
 from src.return_exception import ReturnException
-
 from src.run_time_exception import RunTimeException
 from src.stmt import (
     Block,
+    Break,
     Class,
     Expression,
     FunctionStmt,
@@ -41,7 +41,6 @@ from src.stmt import (
     Var,
     VisitorStmt,
     While,
-    Break,
 )
 from src.token_ import Token, TokenType
 
@@ -330,9 +329,8 @@ class Interpreter(VisitorExpr, VisitorStmt):
         if expr.operator.token_type == TokenType.OR:
             if left:
                 return left
-        else:
-            if not left:
-                return left
+        elif not left:
+            return left
         return self.evaluate(expr=expr.right)
 
     def visit_set_expr(self, expr: Set) -> T:
