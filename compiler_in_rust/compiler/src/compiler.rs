@@ -228,14 +228,14 @@ impl Compiler {
         self.emit_byte(byte1);
         self.emit_byte(byte2);
     }
-    fn emit_jump(&mut self, instruction: fn(i16) -> OpCode) -> usize {
+    fn emit_jump(&mut self, instruction: fn(i16) -> OpCode) -> isize {
         self.emit_byte(instruction(0));
-        self.current_chunk().code.len() - 1
+        (self.current_chunk().count - 1) as isize
     }
-    fn patch_jump(&mut self, jump_index: usize) {
-        let offset = self.current_chunk().code.len() - jump_index - 1;
+    fn patch_jump(&mut self, jump_index: isize) {
+        let offset = self.current_chunk().count - jump_index - 1;
 
-        let opcode = &mut self.current_chunk().code[jump_index];
+        let opcode = &mut self.current_chunk().code[jump_index as usize];
 
         match opcode {
             OpCode::Jump(o) | OpCode::JumpIfFalse(o) | OpCode::Loop(o) => {
@@ -304,10 +304,10 @@ impl Compiler {
     }
     fn match_token(&mut self, token_type: TokenType) -> bool {
         if !self.check(token_type) {
-            return false;
+            false
         } else {
             self.advance();
-            return true;
+            true
         }
     }
     fn parse_precedence(&mut self, precedence: Precedence) {
@@ -388,10 +388,10 @@ impl Compiler {
         }
     }
     fn and(&mut self, can_assign: bool) {
-        let end_junp = self.emit_jump(OpCode::JumpIfFalse);
+        let end_jump = self.emit_jump(OpCode::JumpIfFalse);
         self.emit_byte(OpCode::OpPop);
         self.parse_precedence(Precedence::PrecAnd);
-        self.patch_jump(end_junp);
+        self.patch_jump(end_jump);
     }
     fn or(&mut self, can_assign: bool) {
         let else_jump = self.emit_jump(OpCode::JumpIfFalse);
@@ -433,7 +433,7 @@ impl Compiler {
                 return i as isize;
             }
         }
-        return -1;
+        -1
     }
     fn add_local(&mut self, name: Token) {
         self.locals.push(Local {
@@ -469,7 +469,7 @@ impl Compiler {
     }
     fn make_constant(&mut self, value: Value) -> isize {
         self.current_chunk().add_constant(value);
-        return (self.current_chunk().constants.len() - 1) as isize;
+        (self.current_chunk().constants.len() - 1) as isize
     }
     fn identifier_constant_once(&mut self, name: &Token) -> isize {
         let val = Value::String(name.lexeme.clone());
@@ -679,9 +679,9 @@ impl Compiler {
         self.declare_variable();
 
         if self.scope_depth > 0 {
-            return -1;
+            -1
         } else {
-            return self.identifier_constant_once(&self.previous.clone());
+            self.identifier_constant_once(&self.previous.clone())
         }
     }
     fn expression_statement(&mut self) {
@@ -719,13 +719,10 @@ impl Compiler {
         self.emit_byte(OpCode::OpPrint);
     }
     fn if_statement(&mut self) {
-        self.consume(
-            TokenType::TokenRightParen,
-            "Expect '(' after if.".to_owned(),
-        );
+        self.consume(TokenType::TokenLeftParen, "Expect '(' after if.".to_owned());
         self.expression();
         self.consume(
-            TokenType::TokenLeftParen,
+            TokenType::TokenRightParen,
             "Expect ')' after condition.".to_owned(),
         );
         let then_jump = self.emit_jump(OpCode::JumpIfFalse);
@@ -756,11 +753,11 @@ impl Compiler {
             self.expression_statement();
         }
         let mut loop_start = self.current_chunk().count;
-        let exit_jump: isize = -1;
+        let mut exit_jump: isize = -1;
         if !self.match_token(TokenType::TokenSemicolon) {
             self.expression();
             self.consume(TokenType::TokenSemicolon, "Expect ';'.".to_owned());
-            let exit_jump = self.emit_jump(OpCode::JumpIfFalse);
+            exit_jump = self.emit_jump(OpCode::JumpIfFalse) as isize;
             self.emit_byte(OpCode::OpPop);
         }
         if !self.match_token(TokenType::TokenRightParen) {
@@ -779,7 +776,7 @@ impl Compiler {
         self.statement();
         self.emit_loop(loop_start as usize);
         if exit_jump != -1 {
-            self.patch_jump(exit_jump as usize);
+            self.patch_jump(exit_jump);
             self.emit_byte(OpCode::OpPop);
         }
         self.end_scope();
@@ -1004,18 +1001,18 @@ impl Compiler {
         );
     }
     fn compile(&mut self, source: String) -> ObjFunction {
-        let scaner = Scanner::new(source);
-        self.scanner = Some(scaner);
+        let scanner = Scanner::new(source);
+        self.scanner = Some(scanner);
         self.advance();
         while !self.match_token(TokenType::TokenEof) {
             self.declaration();
         }
         let function = self.end_compiler();
-        return function;
+        function
     }
 }
 // TODO add unit tests
-// loops, if, recursion, closures,
+// recursion, closures,
 
 #[cfg(test)]
 mod tests {
@@ -1303,6 +1300,189 @@ mod tests {
                           var obj = TestClass(2);
                           obj.doStaff(4);"#
             .to_owned();
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+
+        assert_eq!(chunk, &expected_chunk);
+    }
+    #[test]
+    fn test_for() {
+        let expected_chunk = Chunk {
+            code: vec![
+                OpCode::Constant(0),
+                OpCode::GetLocal(1),
+                OpCode::Constant(1),
+                OpCode::OpLess,
+                OpCode::JumpIfFalse(11),
+                OpCode::OpPop,
+                OpCode::Jump(6),
+                OpCode::GetLocal(1),
+                OpCode::Constant(2),
+                OpCode::OpAdd,
+                OpCode::SetLocal(1),
+                OpCode::OpPop,
+                OpCode::Loop(12),
+                OpCode::GetLocal(1),
+                OpCode::OpPrint,
+                OpCode::Loop(9),
+                OpCode::OpPop,
+                OpCode::OpPop,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3, 3, 3, 3, 3],
+            constants: vec![
+                Value::Number(1f64),
+                Value::Number(5f64),
+                Value::Number(1f64),
+            ],
+            count: 20,
+        };
+
+        let source = r#"for (var i = 1; i < 5; i = i + 1) {
+                             print i;
+                            }"#
+        .to_owned();
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+
+        assert_eq!(chunk, &expected_chunk);
+    }
+    #[test]
+    fn test_while() {
+        let expected_chunk = Chunk {
+            code: vec![
+                OpCode::Constant(0),
+                OpCode::DefineGlobal(1),
+                OpCode::GetGlobal(1),
+                OpCode::Constant(2),
+                OpCode::OpLess,
+                OpCode::JumpIfFalse(9),
+                OpCode::OpPop,
+                OpCode::GetGlobal(1),
+                OpCode::OpPrint,
+                OpCode::GetGlobal(1),
+                OpCode::Constant(3),
+                OpCode::OpAdd,
+                OpCode::SetGlobal(1),
+                OpCode::OpPop,
+                OpCode::Loop(13),
+                OpCode::OpPop,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![1, 1, 2, 2, 2, 2, 2, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5],
+            constants: vec![
+                Value::Number(0f64),
+                Value::String("i".to_owned()),
+                Value::Number(5f64),
+                Value::Number(1f64),
+            ],
+            count: 18,
+        };
+
+        let source = r#"var i = 0;
+                            while (i < 5) {
+                                print i;
+                                i = i +1;
+                            }"#
+        .to_owned();
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+
+        assert_eq!(chunk, &expected_chunk);
+    }
+    #[test]
+    fn test_while_block() {
+        let expected_chunk = Chunk {
+            code: vec![
+                OpCode::Constant(0),
+                OpCode::GetLocal(1),
+                OpCode::Constant(1),
+                OpCode::OpLess,
+                OpCode::JumpIfFalse(9),
+                OpCode::OpPop,
+                OpCode::GetLocal(1),
+                OpCode::OpPrint,
+                OpCode::GetLocal(1),
+                OpCode::Constant(2),
+                OpCode::OpAdd,
+                OpCode::SetLocal(1),
+                OpCode::OpPop,
+                OpCode::Loop(13),
+                OpCode::OpPop,
+                OpCode::OpPop,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![2, 3, 3, 3, 3, 3, 4, 4, 5, 5, 5, 5, 5, 6, 6, 7, 7, 7],
+            constants: vec![
+                Value::Number(0f64),
+                Value::Number(5f64),
+                Value::Number(1f64),
+            ],
+            count: 18,
+        };
+
+        let source = r#"{
+                                var i = 0;
+                                while (i < 5) {
+                                    print i;
+                                    i = i +1;
+                                }
+                            }"#
+        .to_owned();
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+
+        assert_eq!(chunk, &expected_chunk);
+    }
+    #[test]
+    fn test_if() {
+        let expected_chunk = Chunk {
+            code: vec![
+                OpCode::Constant(0),
+                OpCode::DefineGlobal(1),
+                OpCode::Constant(2),
+                OpCode::DefineGlobal(3),
+                OpCode::GetGlobal(1),
+                OpCode::GetGlobal(3),
+                OpCode::OpLess,
+                OpCode::JumpIfFalse(4),
+                OpCode::OpPop,
+                OpCode::Constant(4),
+                OpCode::OpPrint,
+                OpCode::Jump(3),
+                OpCode::OpPop,
+                OpCode::Constant(5),
+                OpCode::OpPrint,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![1, 1, 2, 2, 3, 3, 3, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7],
+            constants: vec![
+                Value::Number(2f64),
+                Value::String("a".to_owned()),
+                Value::Number(3f64),
+                Value::String("b".to_owned()),
+                Value::String("a is less than b".to_owned()),
+                Value::String("a is greater than b".to_owned()),
+            ],
+            count: 17,
+        };
+
+        let source = r#"var a = 2;
+                            var b = 3;
+                            if (a < b) {
+                              print("a is less than b");
+                            } else {
+                            print("a is greater than b");
+                            }"#
+        .to_owned();
         let mut compiler = Compiler::new(None, FunctionType::TypeScript);
         compiler.compile(source);
         let chunk = compiler.current_chunk();

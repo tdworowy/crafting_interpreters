@@ -77,7 +77,7 @@ pub enum OpCode {
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct Chunk {
-    pub count: i32,
+    pub count: isize,
     pub code: Vec<OpCode>,
     pub lines: Vec<usize>,
     pub constants: Vec<Value>,
