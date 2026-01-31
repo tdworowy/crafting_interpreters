@@ -2,9 +2,9 @@ class TestClass {
         init(x) {
           this.test=x;
         }
-        doStaff() {
-           print this.test;
+        doStaff(y) {
+           print this.test + y;
     }
 }
-var obj = TestClass("Test");
-obj.doStaff();
+var obj = TestClass(2);
+obj.doStaff(4);

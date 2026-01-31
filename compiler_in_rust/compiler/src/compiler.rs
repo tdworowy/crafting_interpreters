@@ -338,13 +338,12 @@ impl Compiler {
                     return;
                 }
             };
-            can_assign = false;
             match infix_rule {
-                ExprssionType::CALL => self.call(can_assign),
+                ExprssionType::CALL => self.call(false),
                 ExprssionType::DOT => self.dot(can_assign),
-                ExprssionType::AND => self.and(can_assign),
-                ExprssionType::OR => self.or(can_assign),
-                ExprssionType::BINARY => self.binary(can_assign),
+                ExprssionType::AND => self.and(false),
+                ExprssionType::OR => self.or(false),
+                ExprssionType::BINARY => self.binary(false),
                 _ => self.error("Incorrect infix rule".to_owned()),
             }
             if can_assign && self.match_token(TokenType::TokenEqual) {
@@ -380,12 +379,12 @@ impl Compiler {
         let name = self.identifier_constant_once(&self.previous.clone());
         if can_assign && self.match_token(TokenType::TokenEqual) {
             self.expression();
-            self.emit_bytes(OpCode::OpSetProperty, OpCode::Constant(name));
+            self.emit_byte(OpCode::SetProperty(name));
         } else if self.match_token(TokenType::TokenLeftParen) {
             let arg_count = self.argument_list();
             self.emit_byte(OpCode::Invoke(name, arg_count));
         } else {
-            self.emit_bytes(OpCode::OpGetProperty, OpCode::Constant(name));
+            self.emit_byte(OpCode::GetProperty(name));
         }
     }
     fn and(&mut self, can_assign: bool) {
@@ -563,7 +562,7 @@ impl Compiler {
                     self.emit_byte(OpCode::SuperInvoke(name, arg_count));
                 } else {
                     self.named_variable(self.synthetic_token("super".to_owned()), false);
-                    self.emit_bytes(OpCode::OpGetSuper, OpCode::Constant(name));
+                    self.emit_byte(OpCode::GetSuper(name));
                 }
             }
         }
@@ -882,7 +881,7 @@ impl Compiler {
             type_ = FunctionType::TypeInitializer;
         }
         self.function(type_);
-        self.emit_bytes(OpCode::OpMethod, OpCode::Constant(constant));
+        self.emit_byte(OpCode::Method(constant));
     }
     fn function_declaration(&mut self) {
         self.consume(
@@ -939,7 +938,7 @@ impl Compiler {
         let class_name = self.previous.clone();
         let name_constant = self.identifier_constant_once(&self.previous.clone());
         self.declare_variable();
-        self.emit_bytes(OpCode::OpClass, OpCode::Constant(name_constant));
+        self.emit_byte(OpCode::Class(name_constant));
         self.define_variable(name_constant);
         let class_compiler = ClassCompiler {
             enclosing: self.class_compiler.clone(),
@@ -968,7 +967,7 @@ impl Compiler {
             TokenType::TokenLeftBrace,
             "Expect '{' before class body.".to_owned(),
         );
-        while self.check(TokenType::TokenRightBrace) && !self.check(TokenType::TokenEof) {
+        while !self.check(TokenType::TokenRightBrace) && !self.check(TokenType::TokenEof) {
             self.method();
         }
         self.consume(
@@ -1020,9 +1019,10 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::object::ObjFunction;
 
     #[test]
-    fn test_expresion1() {
+    fn test_expression1() {
         let expected_chunk = Chunk {
             code: vec![
                 OpCode::Constant(0),
@@ -1043,7 +1043,7 @@ mod tests {
         assert_eq!(chunk, &expected_chunk);
     }
     #[test]
-    fn test_expresion2() {
+    fn test_expression2() {
         let expected_chunk = Chunk {
             code: vec![
                 OpCode::Constant(0),
@@ -1170,6 +1170,141 @@ mod tests {
         assert_eq!(test_fn.name, "test");
         assert_eq!(test_fn.arity, 1);
         assert_eq!(test_fn.chunk, expected_inner_chunk);
+
+        assert_eq!(chunk, &expected_chunk);
+    }
+    #[test]
+    fn test_block() {
+        let expected_chunk = Chunk {
+            code: vec![
+                OpCode::Constant(0),
+                OpCode::DefineGlobal(1),
+                OpCode::Constant(2),
+                OpCode::GetLocal(1),
+                OpCode::GetGlobal(1),
+                OpCode::OpAdd,
+                OpCode::SetLocal(1),
+                OpCode::OpPop,
+                OpCode::GetLocal(1),
+                OpCode::OpPrint,
+                OpCode::OpPop,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![2, 2, 4, 5, 5, 5, 5, 5, 6, 6, 7, 8, 8],
+            constants: vec![
+                Value::Number(10.0),
+                Value::String("x".to_owned()),
+                Value::Number(2.0),
+            ],
+            count: 13,
+        };
+
+        let source = r#"
+                            var x = 10
+                            {
+                                var y = 2;
+                                y = y + x;
+                                print y;
+                            }
+                           "#
+        .to_owned();
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+
+        assert_eq!(chunk, &expected_chunk);
+    }
+    #[test]
+    fn test_class() {
+        let expected_init_chunk = Chunk {
+            count: 5,
+            code: vec![
+                OpCode::GetLocal(1),
+                OpCode::SetProperty(0),
+                OpCode::OpPop,
+                OpCode::GetLocal(0),
+                OpCode::OpReturn,
+            ],
+            lines: vec![3, 3, 3, 4, 4],
+            constants: vec![Value::String("test".to_owned())],
+        };
+
+        let mut expected_init_fn = ObjFunction::new();
+        expected_init_fn.name = "init".to_owned();
+        expected_init_fn.arity = 1;
+        expected_init_fn.upvalue_count = 0;
+        expected_init_fn.chunk = expected_init_chunk;
+
+        let expected_do_staff_chunk = Chunk {
+            count: 6,
+            code: vec![
+                OpCode::GetProperty(0),
+                OpCode::GetLocal(1),
+                OpCode::OpAdd,
+                OpCode::OpPrint,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![6, 6, 6, 6, 7, 7],
+            constants: vec![Value::String("test".to_owned())],
+        };
+
+        let mut expected_do_staff_fn = ObjFunction::new();
+        expected_do_staff_fn.name = "doStaff".to_owned();
+        expected_do_staff_fn.arity = 1;
+        expected_do_staff_fn.upvalue_count = 0;
+        expected_do_staff_fn.chunk = expected_do_staff_chunk;
+
+        let expected_chunk = Chunk {
+            count: 18,
+            code: vec![
+                OpCode::Class(0),
+                OpCode::DefineGlobal(0),
+                OpCode::GetGlobal(0),
+                OpCode::Closure(2),
+                OpCode::Method(1),
+                OpCode::Closure(4),
+                OpCode::Method(3),
+                OpCode::OpPop,
+                OpCode::GetGlobal(0),
+                OpCode::Constant(5),
+                OpCode::Call(1),
+                OpCode::DefineGlobal(6),
+                OpCode::GetGlobal(6),
+                OpCode::Constant(7),
+                OpCode::Invoke(3, 1),
+                OpCode::OpPop,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![1, 1, 1, 4, 4, 7, 7, 8, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10],
+            constants: vec![
+                Value::String("TestClass".to_owned()),
+                Value::String("init".to_owned()),
+                Value::Function(Box::new(expected_init_fn)),
+                Value::String("doStaff".to_owned()),
+                Value::Function(Box::new(expected_do_staff_fn)),
+                Value::Number(2.0),
+                Value::String("obj".to_owned()),
+                Value::Number(4.0),
+            ],
+        };
+
+        let source = r#"class TestClass {
+                                init(x) {
+                                  this.test=x;
+                                }
+                                doStaff(y) {
+                                   print this.test + y;
+                                }
+                            }
+                          var obj = TestClass(2);
+                          obj.doStaff(4);"#
+            .to_owned();
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
 
         assert_eq!(chunk, &expected_chunk);
     }
