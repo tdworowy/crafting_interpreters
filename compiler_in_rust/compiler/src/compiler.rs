@@ -1015,6 +1015,7 @@ impl Compiler {
     }
 }
 // TODO add unit tests
+// loops, if, recursion, closures,
 
 #[cfg(test)]
 mod tests {
@@ -1152,7 +1153,7 @@ mod tests {
         expected_chunk.constants = vec![
             Value::Function(Box::new(internal_fn)),
             Value::String("test".into()),
-            Value::Number(10.0),
+            Value::Number(10f64),
         ];
 
         let source = r#"fun test(x) {
@@ -1193,9 +1194,9 @@ mod tests {
             ],
             lines: vec![2, 2, 4, 5, 5, 5, 5, 5, 6, 6, 7, 8, 8],
             constants: vec![
-                Value::Number(10.0),
+                Value::Number(10f64),
                 Value::String("x".to_owned()),
-                Value::Number(2.0),
+                Value::Number(2f64),
             ],
             count: 13,
         };
@@ -1285,9 +1286,9 @@ mod tests {
                 Value::Function(Box::new(expected_init_fn)),
                 Value::String("doStaff".to_owned()),
                 Value::Function(Box::new(expected_do_staff_fn)),
-                Value::Number(2.0),
+                Value::Number(2f64),
                 Value::String("obj".to_owned()),
-                Value::Number(4.0),
+                Value::Number(4f64),
             ],
         };
 
