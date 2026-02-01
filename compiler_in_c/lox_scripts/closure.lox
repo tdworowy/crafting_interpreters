@@ -3,6 +3,7 @@ fun fun1(x) {
     fun fun2() {
         return y + 2;
     }
-    return fun2();
+    return fun2;
 }
-print fun1(10);
+var c = fun1(10);
+print c();

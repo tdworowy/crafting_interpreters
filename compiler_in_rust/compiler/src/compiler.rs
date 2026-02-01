@@ -1011,9 +1011,6 @@ impl Compiler {
         function
     }
 }
-// TODO add unit tests
-// recursion, closures,
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1489,4 +1486,168 @@ mod tests {
 
         assert_eq!(chunk, &expected_chunk);
     }
+    #[test]
+    fn test_closure() {
+        let expected_inner_fun2_chunk = Chunk {
+            count: 4,
+            code: vec![
+                OpCode::GetUpvalue(0),
+                OpCode::Constant(0),
+                OpCode::OpAdd,
+                OpCode::OpReturn,
+            ],
+            lines: vec![4, 4, 4, 4],
+            constants: vec![Value::Number(2f64)],
+        };
+
+        let mut expected_fun2 = ObjFunction::new();
+        expected_fun2.name = "fun2".to_owned();
+        expected_fun2.arity = 0;
+        expected_fun2.upvalue_count = 1;
+        expected_fun2.chunk = expected_inner_fun2_chunk;
+
+        let expected_inner_fun1_chunk = Chunk {
+            count: 8,
+            code: vec![
+                OpCode::GetLocal(1),
+                OpCode::Constant(0),
+                OpCode::OpAdd,
+                OpCode::Closure(1),
+                OpCode::Constant(1),
+                OpCode::Constant(2),
+                OpCode::GetLocal(3),
+                OpCode::OpReturn,
+            ],
+            lines: vec![2, 2, 2, 5, 5, 5, 6, 6],
+            constants: vec![
+                Value::Number(1f64),
+                Value::Function(Box::new(expected_fun2)),
+            ],
+        };
+
+        let mut expected_fun1 = ObjFunction::new();
+        expected_fun1.name = "fun1".to_owned();
+        expected_fun1.arity = 1;
+        expected_fun1.upvalue_count = 0;
+        expected_fun1.chunk = expected_inner_fun1_chunk;
+
+        let expected_chunk = Chunk {
+            count: 11,
+            code: vec![
+                OpCode::Closure(0),
+                OpCode::DefineGlobal(1),
+                OpCode::GetGlobal(1),
+                OpCode::Constant(2),
+                OpCode::Call(1),
+                OpCode::DefineGlobal(3),
+                OpCode::GetGlobal(3),
+                OpCode::Call(0),
+                OpCode::OpPrint,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 9],
+            constants: vec![
+                Value::Function(Box::new(expected_fun1)),
+                Value::String("fun1".to_owned()),
+                Value::Number(10f64),
+                Value::String("c".to_owned()),
+            ],
+        };
+
+        let source = r#"fun fun1(x) {
+                                var y = x + 1;
+                                fun fun2() {
+                                    return y + 2;
+                                }
+                                return fun2;
+                            }
+                            var c = fun1(10);
+                            print c();"#
+            .to_owned();
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+
+        assert_eq!(chunk, &expected_chunk);
+    }
+    #[test]
+    fn test_recursion() {
+        let expected_inner_test_chunk = Chunk {
+            count: 17,
+            code: vec![
+                OpCode::GetLocal(1),
+                OpCode::Constant(0),
+                OpCode::OpGreater,
+                OpCode::JumpIfFalse(10),
+                OpCode::OpPop,
+                OpCode::GetGlobal(1),
+                OpCode::GetLocal(1),
+                OpCode::Constant(2),
+                OpCode::OpSubtract,
+                OpCode::Call(1),
+                OpCode::OpPop,
+                OpCode::Constant(3),
+                OpCode::OpPrint,
+                OpCode::Jump(1),
+                OpCode::OpPop,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 5, 5, 6, 6],
+            constants: vec![
+                Value::Number(0f64),
+                Value::String("test".to_owned()),
+                Value::Number(1f64),
+                Value::Number(1f64),
+            ],
+        };
+
+        let mut expected_test_fn = ObjFunction::new();
+        expected_test_fn.name = "test".to_owned();
+        expected_test_fn.arity = 1;
+        expected_test_fn.upvalue_count = 0;
+        expected_test_fn.chunk = expected_inner_test_chunk;
+
+        let expected_chunk = Chunk {
+            count: 8,
+            code: vec![
+                OpCode::Closure(0),
+                OpCode::DefineGlobal(1),
+                OpCode::GetGlobal(1),
+                OpCode::Constant(2),
+                OpCode::Call(1),
+                OpCode::OpPop,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![6, 6, 7, 7, 7, 7, 7, 7],
+            constants: vec![
+                Value::Function(Box::new(expected_test_fn)),
+                Value::String("test".to_owned()),
+                Value::Number(4f64),
+            ],
+        };
+
+        let source = r#"fun test(i) {
+                            if (i > 0) {
+                                test(i - 1);
+                                print 1;
+                              }
+                            }
+                            test(4);"#
+            .to_owned();
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+
+        assert_eq!(chunk, &expected_chunk);
+    }
 }
+// TODO add tests:
+// a closure that captures two locals
+// a closure that captures a local from two levels up (upvalue-of-upvalue case)
+// a nested function that captures nothing (should have upvalue_count = 0 and emit no upvalue descriptors)
+// Short-circuit logic correctness
+// Error handling
+// inheritance

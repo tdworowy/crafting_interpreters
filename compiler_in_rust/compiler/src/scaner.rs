@@ -85,48 +85,47 @@ impl Scanner {
         }
     }
     fn advance(&mut self) -> char {
-        let error_message = format!(
-            "Advanced past end. current:{current} len:{len}",
-            current = self.current,
-            len = self.source.len()
-        );
-        let ch = self.source.chars().nth(self.current).expect(&error_message);
-        self.current += 1;
+        if self.is_at_end() {
+            let error_message = format!(
+                "Advanced past end. current:{current} len:{len}",
+                current = self.current,
+                len = self.source.len()
+            );
+            panic!("{error_message}");
+        }
+
+        let ch = self.source[self.current..]
+            .chars()
+            .next()
+            .expect("advance(): non-empty slice should have a char");
+
+        self.current += ch.len_utf8();
         ch
     }
-    fn peek(&mut self) -> char {
+    fn peek(&self) -> char {
         if self.is_at_end() {
             return '\0';
         }
-        let error_message = format!(
-            "Peek past end. current:{current} len:{len}",
-            current = self.current,
-            len = self.source.len()
-        );
-        let ch = self.source.chars().nth(self.current).expect(&error_message);
-        ch
+        self.source[self.current..].chars().next().unwrap_or('\0')
     }
-    fn peek_next(&mut self) -> char {
-        if self.current + 1 >= self.source.len() {
+    fn peek_next(&self) -> char {
+        if self.is_at_end() {
             return '\0';
         }
-        let error_message = format!(
-            "Peek past end. current + 1:{current} len:{len}",
-            current = self.current + 1,
-            len = self.source.len()
-        );
-        let ch = self
-            .source
-            .chars()
-            .nth(self.current + 1)
-            .expect(&error_message);
-        ch
+
+        let mut it = self.source[self.current..].chars();
+        it.next();
+        it.next().unwrap_or('\0')
     }
     fn match_char(&mut self, expected: char) -> bool {
         if self.is_at_end() || self.peek() != expected {
             false
         } else {
-            self.current += 1;
+            let ch = self.source[self.current..]
+                .chars()
+                .next()
+                .expect("match_char(): non-empty slice should have a char");
+            self.current += ch.len_utf8();
             true
         }
     }
@@ -162,51 +161,64 @@ impl Scanner {
         rest: &str,
         kind: TokenType,
     ) -> TokenType {
-        let lexeme =
-            &self.source[self.start + start_offset..self.start + start_offset + expected_len];
+        let start = self.start + start_offset;
+        let end = start + expected_len;
 
-        if self.current - self.start == start_offset + expected_len && lexeme == rest {
+        if end > self.source.len() {
+            return TokenType::TokenIdentifier;
+        }
+
+        if self.current - self.start != start_offset + expected_len {
+            return TokenType::TokenIdentifier;
+        }
+
+        if &self.source[start..end] == rest {
             kind
         } else {
             TokenType::TokenIdentifier
         }
     }
     fn identifier_type(&self) -> TokenType {
-        match self.source.chars().nth(self.start) {
-            Some('a') => self.check_keyword(1, 2, "nd", TokenType::TokenAnd),
-            Some('c') => self.check_keyword(1, 4, "lass", TokenType::TokenClass),
-            Some('e') => self.check_keyword(1, 3, "lse", TokenType::TokenElse),
-            Some('f') => {
-                if self.current - self.start > 1 {
-                    match self.source.chars().nth(self.start + 1) {
-                        Some('a') => self.check_keyword(2, 3, "lse", TokenType::TokenFalse),
-                        Some('o') => self.check_keyword(2, 1, "r", TokenType::TokenFor),
-                        Some('u') => self.check_keyword(2, 1, "n", TokenType::TokenFun),
+        let bytes = self.source.as_bytes();
+        if self.start >= bytes.len() {
+            return TokenType::TokenIdentifier;
+        }
+
+        match bytes[self.start] {
+            b'a' => self.check_keyword(1, 2, "nd", TokenType::TokenAnd),
+            b'c' => self.check_keyword(1, 4, "lass", TokenType::TokenClass),
+            b'e' => self.check_keyword(1, 3, "lse", TokenType::TokenElse),
+            b'f' => {
+                if self.current - self.start > 1 && self.start + 1 < bytes.len() {
+                    match bytes[self.start + 1] {
+                        b'a' => self.check_keyword(2, 3, "lse", TokenType::TokenFalse),
+                        b'o' => self.check_keyword(2, 1, "r", TokenType::TokenFor),
+                        b'u' => self.check_keyword(2, 1, "n", TokenType::TokenFun),
                         _ => TokenType::TokenIdentifier,
                     }
                 } else {
                     TokenType::TokenIdentifier
                 }
             }
-            Some('i') => self.check_keyword(1, 1, "f", TokenType::TokenIf),
-            Some('n') => self.check_keyword(1, 2, "il", TokenType::TokenNil),
-            Some('o') => self.check_keyword(1, 1, "r", TokenType::TokenOr),
-            Some('p') => self.check_keyword(1, 4, "rint", TokenType::TokenPrint),
-            Some('r') => self.check_keyword(1, 5, "eturn", TokenType::TokenReturn),
-            Some('s') => self.check_keyword(1, 4, "uper", TokenType::TokenSuper),
-            Some('t') => {
-                if self.current - self.start > 1 {
-                    match self.source.chars().nth(self.start + 1) {
-                        Some('h') => self.check_keyword(2, 2, "is", TokenType::TokenThis),
-                        Some('r') => self.check_keyword(2, 2, "ue", TokenType::TokenTrue),
+            b'i' => self.check_keyword(1, 1, "f", TokenType::TokenIf),
+            b'n' => self.check_keyword(1, 2, "il", TokenType::TokenNil),
+            b'o' => self.check_keyword(1, 1, "r", TokenType::TokenOr),
+            b'p' => self.check_keyword(1, 4, "rint", TokenType::TokenPrint),
+            b'r' => self.check_keyword(1, 5, "eturn", TokenType::TokenReturn),
+            b's' => self.check_keyword(1, 4, "uper", TokenType::TokenSuper),
+            b't' => {
+                if self.current - self.start > 1 && self.start + 1 < bytes.len() {
+                    match bytes[self.start + 1] {
+                        b'h' => self.check_keyword(2, 2, "is", TokenType::TokenThis),
+                        b'r' => self.check_keyword(2, 2, "ue", TokenType::TokenTrue),
                         _ => TokenType::TokenIdentifier,
                     }
                 } else {
                     TokenType::TokenIdentifier
                 }
             }
-            Some('v') => self.check_keyword(1, 2, "ar", TokenType::TokenVar),
-            Some('w') => self.check_keyword(1, 4, "hile", TokenType::TokenWhile),
+            b'v' => self.check_keyword(1, 2, "ar", TokenType::TokenVar),
+            b'w' => self.check_keyword(1, 4, "hile", TokenType::TokenWhile),
             _ => TokenType::TokenIdentifier,
         }
     }
@@ -214,7 +226,7 @@ impl Scanner {
         while self.peek().is_alphanumeric() || self.peek() == '_' {
             self.advance();
         }
-        return self.make_token(self.identifier_type());
+        self.make_token(self.identifier_type())
     }
     fn number(&mut self) -> Token {
         while self.peek().is_numeric() {
@@ -251,7 +263,7 @@ impl Scanner {
         }
         let c = self.advance();
         if c.is_alphabetic() || c == '_' {
-            return self.identifier();
+            self.identifier()
         } else if c.is_numeric() {
             return self.number();
         } else {
