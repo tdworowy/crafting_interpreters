@@ -52,45 +52,45 @@ lazy_static::lazy_static! {
     static ref RULES: HashMap<TokenType, ParseRule> = {
         let mut m = HashMap::new();
 
-        m.insert(TokenType::TokenLeftParen,     ParseRule { prefix: Some(ExprssionType::GROUPING), infix: Some(ExprssionType::CALL),    precedence: Precedence::PrecCall });
-        m.insert(TokenType::TokenRightParen,    ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenLeftBrace,     ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenRightBrace,    ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenDot,            ParseRule { prefix: None,                         infix: Some(ExprssionType::DOT),     precedence: Precedence::PrecCall });
-        m.insert(TokenType::TokenMinus,          ParseRule { prefix: Some(ExprssionType::UNARY),    infix: Some(ExprssionType::BINARY),  precedence: Precedence::PrecTerm });
-        m.insert(TokenType::TokenPlus,           ParseRule { prefix: None,                         infix: Some(ExprssionType::BINARY),  precedence: Precedence::PrecTerm });
-        m.insert(TokenType::TokenSemicolon,      ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenSlash,          ParseRule { prefix: None,                         infix: Some(ExprssionType::BINARY),  precedence: Precedence::PrecFactor });
-        m.insert(TokenType::TokenStar,           ParseRule { prefix: None,                         infix: Some(ExprssionType::BINARY),  precedence: Precedence::PrecFactor });
-        m.insert(TokenType::TokenBang,           ParseRule { prefix: Some(ExprssionType::UNARY),    infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenBangEqual,     ParseRule { prefix: None,                         infix: Some(ExprssionType::BINARY),  precedence: Precedence::PrecEquality });
-        m.insert(TokenType::TokenEqual,          ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenEqualEqual,    ParseRule { prefix: None,                         infix: Some(ExprssionType::BINARY),  precedence: Precedence::PrecEquality });
-        m.insert(TokenType::TokenGreater,        ParseRule { prefix: None,                         infix: Some(ExprssionType::BINARY),  precedence: Precedence::PrecComparison });
-        m.insert(TokenType::TokenGreaterEqual,  ParseRule { prefix: None,                         infix: Some(ExprssionType::BINARY),  precedence: Precedence::PrecComparison });
-        m.insert(TokenType::TokenLess,           ParseRule { prefix: None,                         infix: Some(ExprssionType::BINARY),  precedence: Precedence::PrecComparison });
-        m.insert(TokenType::TokenLessEqual,     ParseRule { prefix: None,                         infix: Some(ExprssionType::BINARY),  precedence: Precedence::PrecComparison });
-        m.insert(TokenType::TokenIdentifier,     ParseRule { prefix: Some(ExprssionType::VARIABLE), infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenString,         ParseRule { prefix: Some(ExprssionType::STRING),   infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenNumber,         ParseRule { prefix: Some(ExprssionType::NUMBER),   infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenAnd,            ParseRule { prefix: None,                         infix: Some(ExprssionType::AND),     precedence: Precedence::PrecAnd });
-        m.insert(TokenType::TokenClass,          ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenElse,           ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenFalse,          ParseRule { prefix: Some(ExprssionType::LITERAL),  infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenFor,            ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenFun,            ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenIf,             ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenNil,            ParseRule { prefix: Some(ExprssionType::LITERAL),  infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenOr,             ParseRule { prefix: None,                         infix: Some(ExprssionType::OR),      precedence: Precedence::PrecOr });
-        m.insert(TokenType::TokenPrint,          ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenReturn,         ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenSuper,          ParseRule { prefix: Some(ExprssionType::SUPER),    infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenThis,           ParseRule { prefix: Some(ExprssionType::THIS),     infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenTrue,           ParseRule { prefix: Some(ExprssionType::LITERAL),  infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenVar,            ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenWhile,          ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenError,          ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
-        m.insert(TokenType::TokenEof,            ParseRule { prefix: None,                         infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenLeftParen,     ParseRule { prefix: Some(ExprssionType::GROUPING), infix: Some(ExprssionType::CALL),   precedence: Precedence::PrecCall });
+        m.insert(TokenType::TokenRightParen,    ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenLeftBrace,     ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenRightBrace,    ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenDot,           ParseRule { prefix: None,                          infix: Some(ExprssionType::DOT),    precedence: Precedence::PrecCall });
+        m.insert(TokenType::TokenMinus,         ParseRule { prefix: Some(ExprssionType::UNARY),    infix: Some(ExprssionType::BINARY), precedence: Precedence::PrecTerm });
+        m.insert(TokenType::TokenPlus,          ParseRule { prefix: None,                          infix: Some(ExprssionType::BINARY), precedence: Precedence::PrecTerm });
+        m.insert(TokenType::TokenSemicolon,     ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenSlash,         ParseRule { prefix: None,                          infix: Some(ExprssionType::BINARY), precedence: Precedence::PrecFactor });
+        m.insert(TokenType::TokenStar,          ParseRule { prefix: None,                          infix: Some(ExprssionType::BINARY), precedence: Precedence::PrecFactor });
+        m.insert(TokenType::TokenBang,          ParseRule { prefix: Some(ExprssionType::UNARY),    infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenBangEqual,     ParseRule { prefix: None,                          infix: Some(ExprssionType::BINARY), precedence: Precedence::PrecEquality });
+        m.insert(TokenType::TokenEqual,         ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenEqualEqual,    ParseRule { prefix: None,                          infix: Some(ExprssionType::BINARY), precedence: Precedence::PrecEquality });
+        m.insert(TokenType::TokenGreater,       ParseRule { prefix: None,                          infix: Some(ExprssionType::BINARY), precedence: Precedence::PrecComparison });
+        m.insert(TokenType::TokenGreaterEqual,  ParseRule { prefix: None,                          infix: Some(ExprssionType::BINARY), precedence: Precedence::PrecComparison });
+        m.insert(TokenType::TokenLess,          ParseRule { prefix: None,                          infix: Some(ExprssionType::BINARY), precedence: Precedence::PrecComparison });
+        m.insert(TokenType::TokenLessEqual,     ParseRule { prefix: None,                          infix: Some(ExprssionType::BINARY), precedence: Precedence::PrecComparison });
+        m.insert(TokenType::TokenIdentifier,    ParseRule { prefix: Some(ExprssionType::VARIABLE), infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenString,        ParseRule { prefix: Some(ExprssionType::STRING),   infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenNumber,        ParseRule { prefix: Some(ExprssionType::NUMBER),   infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenAnd,           ParseRule { prefix: None,                          infix: Some(ExprssionType::AND),    precedence: Precedence::PrecAnd });
+        m.insert(TokenType::TokenClass,         ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenElse,          ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenFalse,         ParseRule { prefix: Some(ExprssionType::LITERAL),  infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenFor,           ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenFun,           ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenIf,            ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenNil,           ParseRule { prefix: Some(ExprssionType::LITERAL),  infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenOr,            ParseRule { prefix: None,                          infix: Some(ExprssionType::OR),     precedence: Precedence::PrecOr });
+        m.insert(TokenType::TokenPrint,         ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenReturn,        ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenSuper,         ParseRule { prefix: Some(ExprssionType::SUPER),    infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenThis,          ParseRule { prefix: Some(ExprssionType::THIS),     infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenTrue,          ParseRule { prefix: Some(ExprssionType::LITERAL),  infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenVar,           ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenWhile,         ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenError,         ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
+        m.insert(TokenType::TokenEof,           ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
 
         m
     };
@@ -137,7 +137,7 @@ struct Compiler {
     previous: Token,
     had_error: bool,
     panic_mode: bool,
-} // I have combited Parser and Compiler, it may have some side effects
+}
 
 #[derive(Clone)]
 struct ClassCompiler {
