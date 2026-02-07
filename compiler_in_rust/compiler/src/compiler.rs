@@ -1037,6 +1037,7 @@ mod tests {
         let chunk = compiler.current_chunk();
         assert_eq!(chunk, &expected_chunk);
     }
+
     #[test]
     fn test_expression2() {
         let expected_chunk = Chunk {
@@ -1062,6 +1063,7 @@ mod tests {
         let chunk = compiler.current_chunk();
         assert_eq!(chunk, &expected_chunk);
     }
+
     #[test]
     fn test_statement() {
         let expected_chunk = Chunk {
@@ -1081,6 +1083,7 @@ mod tests {
         let chunk = compiler.current_chunk();
         assert_eq!(chunk, &expected_chunk);
     }
+
     #[test]
     fn test_print_variable() {
         let expected_chunk = Chunk {
@@ -1107,6 +1110,7 @@ mod tests {
 
         assert_eq!(chunk, &expected_chunk);
     }
+
     #[test]
     fn test_function() {
         let expected_inner_chunk = Chunk {
@@ -1168,6 +1172,7 @@ mod tests {
 
         assert_eq!(chunk, &expected_chunk);
     }
+
     #[test]
     fn test_block() {
         let expected_chunk = Chunk {
@@ -1210,6 +1215,7 @@ mod tests {
 
         assert_eq!(chunk, &expected_chunk);
     }
+
     #[test]
     fn test_class() {
         let expected_init_chunk = Chunk {
@@ -1303,6 +1309,7 @@ mod tests {
 
         assert_eq!(chunk, &expected_chunk);
     }
+
     #[test]
     fn test_for() {
         let expected_chunk = Chunk {
@@ -1347,6 +1354,7 @@ mod tests {
 
         assert_eq!(chunk, &expected_chunk);
     }
+
     #[test]
     fn test_while() {
         let expected_chunk = Chunk {
@@ -1392,6 +1400,7 @@ mod tests {
 
         assert_eq!(chunk, &expected_chunk);
     }
+
     #[test]
     fn test_while_block() {
         let expected_chunk = Chunk {
@@ -1438,6 +1447,7 @@ mod tests {
 
         assert_eq!(chunk, &expected_chunk);
     }
+
     #[test]
     fn test_if() {
         let expected_chunk = Chunk {
@@ -1486,6 +1496,7 @@ mod tests {
 
         assert_eq!(chunk, &expected_chunk);
     }
+
     #[test]
     fn test_closure1() {
         let expected_inner_fun2_chunk = Chunk {
@@ -1571,6 +1582,7 @@ mod tests {
 
         assert_eq!(chunk, &expected_chunk);
     }
+
     #[test]
     fn test_closure2() {
         let expected_inner_fun2_chunk = Chunk {
@@ -1667,6 +1679,7 @@ mod tests {
 
         assert_eq!(chunk, &expected_chunk);
     }
+
     #[test]
     fn test_closure3() {
         let expected_inner_fun2_chunk = Chunk {
@@ -1737,6 +1750,110 @@ mod tests {
 
         assert_eq!(chunk, &expected_chunk);
     }
+
+    #[test]
+    fn test_closure4() {
+        // inner-most: fun fun3() { return x + 5; }
+        let expected_fun3_chunk = Chunk {
+            count: 4,
+            code: vec![
+                OpCode::GetGlobal(0),
+                OpCode::Constant(1),
+                OpCode::OpAdd,
+                OpCode::OpReturn,
+            ],
+            lines: vec![5, 5, 5, 5],
+            constants: vec![Value::String("x".to_owned()), Value::Number(5f64)],
+        };
+        let mut expected_fun3 = ObjFunction::new();
+        expected_fun3.name = "fun3".to_owned();
+        expected_fun3.arity = 0;
+        expected_fun3.upvalue_count = 0;
+        expected_fun3.chunk = expected_fun3_chunk;
+
+        // middle: fun fun2() { fun fun3() { ... } return fun3 }
+        let expected_fun2_chunk = Chunk {
+            count: 3,
+            code: vec![OpCode::Closure(0), OpCode::GetLocal(1), OpCode::OpReturn],
+            lines: vec![6, 7, 7],
+            constants: vec![Value::Function(Box::new(expected_fun3))],
+        };
+        let mut expected_fun2 = ObjFunction::new();
+        expected_fun2.name = "fun2".to_owned();
+        expected_fun2.arity = 0;
+        expected_fun2.upvalue_count = 0;
+        expected_fun2.chunk = expected_fun2_chunk;
+
+        // outer: fun fun1() { let x = 10; ... return fun2; }
+        let expected_fun1_chunk = Chunk {
+            count: 8,
+            code: vec![
+                OpCode::GetGlobal(0),
+                OpCode::OpPop,
+                OpCode::Constant(2),
+                OpCode::SetGlobal(1),
+                OpCode::OpPop,
+                OpCode::Closure(3),
+                OpCode::GetLocal(1),
+                OpCode::OpReturn,
+            ],
+            lines: vec![2, 2, 2, 2, 2, 8, 9, 9],
+            constants: vec![
+                Value::String("let".to_owned()),
+                Value::String("x".to_owned()),
+                Value::Number(10f64),
+                Value::Function(Box::new(expected_fun2)),
+            ],
+        };
+        let mut expected_fun1 = ObjFunction::new();
+        expected_fun1.name = "fun1".to_owned();
+        expected_fun1.arity = 0;
+        expected_fun1.upvalue_count = 0;
+        expected_fun1.chunk = expected_fun1_chunk;
+
+        // script chunk: var c = fun1(); print c()();
+        let expected_chunk = Chunk {
+            count: 11,
+            code: vec![
+                OpCode::Closure(0),
+                OpCode::DefineGlobal(1),
+                OpCode::GetGlobal(1),
+                OpCode::Call(0),
+                OpCode::DefineGlobal(2),
+                OpCode::GetGlobal(2),
+                OpCode::Call(0),
+                OpCode::Call(0),
+                OpCode::OpPrint,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![10, 10, 11, 11, 11, 12, 12, 12, 12, 12, 12],
+            constants: vec![
+                Value::Function(Box::new(expected_fun1)),
+                Value::String("fun1".to_owned()),
+                Value::String("c".to_owned()),
+            ],
+        };
+        let source = r#"fun fun1() {
+                                let x = 10;
+                                fun fun2() {
+                                   fun fun3() {
+                                    return x + 5;
+                                    }
+                                   return fun3
+                                }
+                                return fun2;
+                            }
+                            var c = fun1();
+                            print c()();"#
+            .to_owned();
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+
+        assert_eq!(chunk, &expected_chunk);
+    }
+
     #[test]
     fn test_recursion() {
         let expected_inner_test_chunk = Chunk {
@@ -1809,9 +1926,156 @@ mod tests {
 
         assert_eq!(chunk, &expected_chunk);
     }
+
+    #[test]
+    fn test_short_circuit_or_compiles_correct_jumps() {
+        let expected_chunk = Chunk {
+            code: vec![
+                OpCode::OpTrue,
+                OpCode::JumpIfFalse(1),
+                OpCode::Jump(2),
+                OpCode::OpPop,
+                OpCode::OpFalse,
+                OpCode::OpPop,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![1, 1, 1, 1, 1, 1, 1, 1],
+            constants: vec![],
+            count: 8,
+        };
+
+        let source = "true or false;".to_owned();
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+
+        assert_eq!(chunk, &expected_chunk);
+    }
+
+    #[test]
+    fn test_short_circuit_and_compiles_correct_jumps() {
+        let expected_chunk = Chunk {
+            code: vec![
+                OpCode::OpFalse,
+                OpCode::JumpIfFalse(2),
+                OpCode::OpPop,
+                OpCode::OpTrue,
+                OpCode::OpPop,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![1, 1, 1, 1, 1, 1, 1],
+            constants: vec![],
+            count: 7,
+        };
+
+        let source = "false and true;".to_owned();
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+
+        assert_eq!(chunk, &expected_chunk);
+    }
+
+    #[test]
+    fn test_inheritance() {
+        // Superclass method: doStaff() { print "Inheritance works"; }
+        let expected_super_do_staff_chunk = Chunk {
+            count: 4,
+            code: vec![
+                OpCode::Constant(0),
+                OpCode::OpPrint,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![3, 3, 4, 4],
+            constants: vec![Value::String("Inheritance works".to_owned())],
+        };
+        let mut expected_super_do_staff_fn = ObjFunction::new();
+        expected_super_do_staff_fn.name = "doStaff".to_owned();
+        expected_super_do_staff_fn.arity = 0;
+        expected_super_do_staff_fn.upvalue_count = 0;
+        expected_super_do_staff_fn.chunk = expected_super_do_staff_chunk;
+
+        // Subclass override: doStaff() { super.doStaff(); }
+        let expected_sub_do_staff_chunk = Chunk {
+            count: 4,
+            code: vec![
+                OpCode::Invoke(0, 0),
+                OpCode::OpPop,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![8, 8, 9, 9],
+            constants: vec![Value::String("doStaff".to_owned())],
+        };
+        let mut expected_sub_do_staff_fn = ObjFunction::new();
+        expected_sub_do_staff_fn.name = "doStaff".to_owned();
+        expected_sub_do_staff_fn.arity = 0;
+        expected_sub_do_staff_fn.upvalue_count = 0;
+        expected_sub_do_staff_fn.chunk = expected_sub_do_staff_chunk;
+
+        // Script chunk
+        let expected_chunk = Chunk {
+            count: 24,
+            code: vec![
+                OpCode::Class(0),
+                OpCode::DefineGlobal(0),
+                OpCode::GetGlobal(0),
+                OpCode::Closure(2),
+                OpCode::Method(1),
+                OpCode::OpPop,
+                OpCode::Class(3),
+                OpCode::DefineGlobal(3),
+                OpCode::GetGlobal(0),
+                OpCode::GetGlobal(3),
+                OpCode::OpInherit,
+                OpCode::GetGlobal(3),
+                OpCode::Closure(4),
+                OpCode::Method(1),
+                OpCode::OpPop,
+                OpCode::OpPop,
+                OpCode::GetGlobal(3),
+                OpCode::Call(0),
+                OpCode::DefineGlobal(5),
+                OpCode::GetGlobal(5),
+                OpCode::Invoke(1, 0),
+                OpCode::OpPop,
+                OpCode::OpNil,
+                OpCode::OpReturn,
+            ],
+            lines: vec![
+                1, 1, 1, 4, 4, 5, 6, 6, 6, 6, 6, 6, 9, 9, 10, 10, 11, 11, 11, 12, 12, 12, 12, 12,
+            ],
+            constants: vec![
+                Value::String("superClass".to_owned()),                // 0
+                Value::String("doStaff".to_owned()),                   // 1
+                Value::Function(Box::new(expected_super_do_staff_fn)), // 2
+                Value::String("subClass".to_owned()),                  // 3
+                Value::Function(Box::new(expected_sub_do_staff_fn)),   // 4
+                Value::String("obj".to_owned()),                       // 5
+            ],
+        };
+        let source = r#"class superClass {
+                                    doStaff() {
+                                      print "Inheritance works";
+                                    }
+                                }
+                                class subClass < superClass {
+                                    doStaff() {
+                                       super.doStaff();
+                                    }
+                                }
+                                var obj = subClass();
+                                obj.doStaff();"#
+            .to_owned();
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+
+        assert_eq!(chunk, &expected_chunk);
+    }
 }
 // TODO add tests:
-// a closure that captures a local from two levels up (upvalue-of-upvalue case)
-// Short-circuit logic correctness
 // Error handling
-// inheritance
