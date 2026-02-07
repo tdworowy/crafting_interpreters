@@ -109,23 +109,79 @@ impl Default for Chunk {
     }
 }
 
-// TODO better tests
-#[test]
-fn test_chunk() {
-    let mut chunk = Chunk::new();
-    chunk.write_chunk(OpCode::OpAdd, 1);
-    chunk.write_chunk(OpCode::OpPop, 2);
-    chunk.write_chunk(OpCode::OpAdd, 3);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let values: Vec<Value> = Vec::new();
+    #[test]
+    fn chunk_new_is_empty() {
+        let chunk = Chunk::new();
+        assert_eq!(chunk.count, 0);
+        assert!(chunk.code.is_empty());
+        assert!(chunk.lines.is_empty());
+        assert!(chunk.constants.is_empty());
+    }
 
-    assert_eq!(chunk.count, 3);
-    assert_eq!(
-        chunk.code,
-        vec![OpCode::OpAdd, OpCode::OpPop, OpCode::OpAdd]
-    );
-    assert_eq!(chunk.lines, vec![1, 2, 3]);
-    assert_eq!(chunk.constants, values);
-    chunk.add_constant(Value::String("123".to_owned()));
-    assert_eq!(chunk.constants, vec![Value::String("123".to_owned())]);
+    #[test]
+    fn chunk_default_is_new() {
+        let chunk = Chunk::default();
+        assert_eq!(chunk, Chunk::new());
+    }
+
+    #[test]
+    fn write_chunk_appends_code_and_line_and_increments_count() {
+        let mut chunk = Chunk::new();
+
+        chunk.write_chunk(OpCode::OpAdd, 10);
+        chunk.write_chunk(OpCode::OpPop, 11);
+        chunk.write_chunk(OpCode::Constant(123), 12);
+
+        assert_eq!(chunk.count, 3);
+        assert_eq!(
+            chunk.code,
+            vec![OpCode::OpAdd, OpCode::OpPop, OpCode::Constant(123)]
+        );
+        assert_eq!(chunk.lines, vec![10, 11, 12]);
+
+        // Ensure code/lines stay in sync.
+        assert_eq!(chunk.code.len(), chunk.lines.len());
+        assert_eq!(chunk.code.len() as isize, chunk.count);
+    }
+
+    #[test]
+    fn add_constant_returns_index_and_stores_value() {
+        let mut chunk = Chunk::new();
+
+        let idx0 = chunk.add_constant(Value::Number(1.25));
+        let idx1 = chunk.add_constant(Value::String("hello".to_owned()));
+        let idx2 = chunk.add_constant(Value::Nil);
+
+        assert_eq!(idx0, 0);
+        assert_eq!(idx1, 1);
+        assert_eq!(idx2, 2);
+
+        assert_eq!(
+            chunk.constants,
+            vec![
+                Value::Number(1.25),
+                Value::String("hello".to_owned()),
+                Value::Nil
+            ]
+        );
+    }
+
+    #[test]
+    fn value_from_str_and_string_create_string_value() {
+        let v1: Value = "abc".into();
+        let v2: Value = String::from("abc").into();
+        assert_eq!(v1, Value::String("abc".to_owned()));
+        assert_eq!(v2, Value::String("abc".to_owned()));
+    }
+
+    #[test]
+    #[should_panic]
+    fn as_function_panics_if_not_a_function() {
+        let v = Value::Number(123.0);
+        let _ = v.as_function();
+    }
 }
