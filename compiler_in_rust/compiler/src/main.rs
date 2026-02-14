@@ -4,8 +4,10 @@ mod chunks;
 mod compiler;
 mod memory;
 mod object;
-mod scaner;
+mod scanner;
+mod value;
 mod vm;
+
 fn main() {
     // TESTING
     let mut chunk = Chunk::new();

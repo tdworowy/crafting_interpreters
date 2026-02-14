@@ -1,12 +1,22 @@
+use crate::object::ObjClosure;
+use crate::value::Value;
+
 pub struct VM {
     pub stack_top: u64,
     pub stack: Vec<u64>,
+    pub call_frames: Vec<CallFrame>,
+}
+pub struct CallFrame {
+    ip: usize,
+    closure: ObjClosure,
+    slots: Vec<Value>,
 }
 impl VM {
     pub fn new() -> Self {
         Self {
             stack_top: 0,
             stack: vec![],
+            call_frames: vec![],
         }
     }
     pub fn push(&mut self, value: u64) {
@@ -16,6 +26,9 @@ impl VM {
     pub fn pop(&mut self) -> u64 {
         self.stack_top -= 1;
         self.stack.pop().expect("Can't pop value from stack")
+    }
+    fn peek(&mut self, distance: i64) -> u64 {
+        self.stack[self.stack_top as usize - distance as usize]
     }
 }
 

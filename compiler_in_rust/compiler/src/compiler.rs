@@ -4,7 +4,7 @@ use crate::chunks::Value;
 use crate::{
     chunks::{Chunk, OpCode},
     object::ObjFunction,
-    scaner::{Scanner, Token, TokenType},
+    scanner::{Scanner, Token, TokenType},
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
