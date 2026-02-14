@@ -117,10 +117,10 @@ pub struct ObjString {
     pub hash: u64,
 }
 impl ObjString {
-    pub fn from_string(s: String) -> *mut ObjString {
+    pub fn from_string(s: String) -> ObjString {
         let hash = hash_string(&s);
 
-        let obj_string = Box::new(ObjString {
+        let obj_string = ObjString {
             obj: Box::new(Obj {
                 obj_type: ObjType::ObjString,
                 is_marked: false,
@@ -128,12 +128,11 @@ impl ObjString {
             }),
             data: s,
             hash,
-        });
-
-        Box::into_raw(obj_string)
+        };
+        obj_string
     }
 
-    pub fn copy_from_str(s: &str) -> *mut ObjString {
+    pub fn copy_from_str(s: &str) -> ObjString {
         Self::from_string(s.to_owned())
     }
 
