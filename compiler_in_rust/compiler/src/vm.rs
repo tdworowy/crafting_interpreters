@@ -52,6 +52,34 @@ impl VM {
     fn peek(&mut self, distance: i64) -> u64 {
         self.stack[self.stack_top as usize - distance as usize]
     }
+    fn reset_stack(&mut self) {
+        self.stack_top = 0;
+        self.stack = vec![];
+        self.open_upvalue = None;
+    }
+    fn runtime_error(&mut self, msg: &str) {
+        eprintln!("{msg}");
+
+        for frame in self.call_frames.iter().rev() {
+            let frame = frame.to_owned();
+            let function = &frame.closure.function;
+
+            let instruction_idx = frame.ip.saturating_sub(1);
+            let line = function.chunk.lines[instruction_idx];
+            eprint!("[line {line}] in ");
+
+            if function.name.is_empty() {
+                eprintln!("<script>");
+            } else {
+                eprintln!("{}", function.name);
+            }
+        }
+
+        self.reset_stack();
+    }
+    fn runtime_error_fmt(&mut self, fmt: &str, args: std::fmt::Arguments<'_>) {
+        self.runtime_error(&format!("{fmt}{args}"));
+    }
 }
 
 #[test]

@@ -42,7 +42,7 @@ impl ObjFunction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ObjUpvalue {
     pub obj: Box<Obj>,
     pub location: *mut Value,
@@ -106,9 +106,9 @@ impl ObjUpvalue {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjClosure {
     obj: Box<Obj>,
-    function: *const ObjFunction,
-    upvalues: *const ObjUpvalue,
-    upvalue_count: usize,
+    pub function: ObjFunction,
+    pub upvalues: ObjUpvalue,
+    pub upvalue_count: usize,
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjString {
