@@ -450,7 +450,7 @@ impl Compiler {
         }
 
         self.upvalues.push(Upvalue { index, is_local });
-        self.function.upvalue_count = self.upvalues.len() as isize;
+        self.function.upvalue_count = self.upvalues.len();
         (self.upvalues.len() - 1) as isize
     }
     fn resolve_upvalue(&mut self, name: Token) -> isize {

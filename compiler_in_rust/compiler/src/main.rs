@@ -1,3 +1,5 @@
+use crate::object::ObjNative;
+use crate::vm::clock_native;
 use crate::{chunks::Chunk, vm::VM};
 
 mod chunks;
@@ -9,9 +11,5 @@ mod value;
 mod vm;
 
 fn main() {
-    // TESTING
-    let mut chunk = Chunk::new();
     let mut vm = VM::new();
-    chunk.write_chunk(chunks::OpCode::OpAdd, 122);
-    println!("{:?}", chunk);
 }
