@@ -1,6 +1,4 @@
-use crate::object::ObjNative;
-use crate::vm::clock_native;
-use crate::{chunks::Chunk, vm::VM};
+use crate::vm::VM;
 
 mod chunks;
 mod compiler;
