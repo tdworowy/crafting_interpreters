@@ -1,4 +1,4 @@
-use crate::object::{NativeFn, Obj, ObjClosure, ObjNative, ObjString, ObjUpvalue};
+use crate::object::{NativeFn, Obj, ObjClosure, ObjNative, ObjString, ObjType, ObjUpvalue};
 use crate::value::{Value, obj_val};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -69,7 +69,7 @@ impl VM {
         self.stack = vec![];
         self.open_upvalue = None;
     }
-    fn runtime_error(&mut self, msg: &str) {
+    fn runtime_error(&mut self, msg: String) {
         eprintln!("{msg}");
 
         for frame in self.call_frames.iter().rev() {
@@ -90,7 +90,7 @@ impl VM {
         self.reset_stack();
     }
     fn runtime_error_fmt(&mut self, fmt: &str, args: std::fmt::Arguments<'_>) {
-        self.runtime_error(&format!("{fmt}{args}"));
+        self.runtime_error(format!("{fmt}{args}"));
     }
     pub fn define_native(&mut self, name: &str, function: NativeFn) {
         self.push(obj_val(
@@ -110,4 +110,33 @@ impl VM {
         self.pop();
         self.pop();
     }
+    fn call(&mut self, obj_closure: ObjClosure, arg_count: usize) -> bool {
+        if arg_count != obj_closure.function.arity {
+            self.runtime_error(format!(
+                "Expected {} arguments but got {}.",
+                obj_closure.function.arity, arg_count
+            ));
+            false
+        } else {
+            let mut frame: CallFrame = self.call_frames.pop().unwrap();
+            frame.closure = obj_closure.clone();
+            frame.ip = obj_closure.function.chunk.code.len(); // not sure if it works
+            frame
+                .slots
+                .push(self.stack[self.stack_top as usize].to_owned());
+            true
+        }
+    }
+    // fn call_value(&mut self, callee: Value, arg_count: usize) -> bool {
+    //     if callee.is_obj() {
+    //         unsafe {
+    //             match (*callee.as_obj()).obj_type {
+    //                 ObjType::ObjClass => {
+    //
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+    // TODO handle as_class, as_native, as_bound_method, as_closure
 }
