@@ -1,4 +1,6 @@
-use crate::object::{NativeFn, Obj, ObjClosure, ObjNative, ObjString, ObjType, ObjUpvalue};
+use crate::object::{
+    NativeFn, Obj, ObjClass, ObjClosure, ObjInstance, ObjNative, ObjString, ObjType, ObjUpvalue,
+};
 use crate::value::{Value, obj_val};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -6,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub struct VM {
     call_frames: Vec<CallFrame>,
     stack: Vec<Value>,
-    stack_top: u64,
+    stack_top: usize,
     globals: HashMap<String, Value>,
     strings: HashMap<String, Value>,
     init_string: ObjString,
@@ -127,16 +129,67 @@ impl VM {
             true
         }
     }
-    // fn call_value(&mut self, callee: Value, arg_count: usize) -> bool {
-    //     if callee.is_obj() {
-    //         unsafe {
-    //             match (*callee.as_obj()).obj_type {
-    //                 ObjType::ObjClass => {
-    //
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-    // TODO handle as_class, as_native, as_bound_method, as_closure
+
+    fn call_value(&mut self, callee: Value, arg_count: usize) -> bool {
+        if !callee.is_obj() {
+            self.runtime_error("Can only call functions and classes.".to_owned());
+            return false;
+        }
+
+        unsafe {
+            match (*callee.as_obj()).obj_type {
+                ObjType::ObjClass => {
+                    let klass = callee.as_class();
+
+                    // Create instance
+                    let instance = ObjInstance::new((*klass).clone(), HashMap::new());
+                    let instance_ptr = Box::into_raw(Box::new(instance)) as *mut Obj;
+
+                    // Replace callee slot with instance
+                    self.stack[self.stack_top - arg_count - 1] = obj_val(instance_ptr);
+
+                    // Call initializer if exists
+                    if let Some(init) = (*klass).methods.get("init") {
+                        self.call(init.as_closure(), arg_count)
+                    } else {
+                        if arg_count != 0 {
+                            self.runtime_error(format!("Expected 0 arguments, got {}.", arg_count));
+                            return false;
+                        }
+                        true
+                    }
+                }
+
+                ObjType::ObjClosure => self.call(*callee.as_closure(), arg_count),
+
+                ObjType::ObjNative => {
+                    let native = callee.as_native();
+
+                    let args_start = self.stack_top - arg_count;
+                    let result =
+                        ((*native).function)(arg_count, &self.stack[args_start..self.stack_top]);
+
+                    // Pop args + callee, push result
+                    self.stack_top -= arg_count + 1;
+                    self.push(result);
+
+                    true
+                }
+
+                ObjType::ObjBoundMethod => {
+                    let bound = callee.as_bound_method();
+
+                    // Replace callee with receiver
+                    self.stack[self.stack_top - arg_count - 1] = (*bound).receiver.clone();
+                    let method = (*bound).method.clone();
+                    self.call(method, arg_count)
+                }
+
+                _ => {
+                    self.runtime_error("Can only call functions and classes.".to_owned());
+                    false
+                }
+            }
+        }
+    }
 }

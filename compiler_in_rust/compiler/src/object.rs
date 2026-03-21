@@ -1,5 +1,6 @@
 use crate::chunks::Chunk;
 use crate::value::Value;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ObjType {
@@ -192,7 +193,69 @@ pub fn hash_string(s: &str) -> u64 {
 
     hash
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ObjClass {
+    pub obj: Obj,
+    pub name: String,
+    pub methods: HashMap<String, Value>,
+}
+impl ObjClass {
+    pub fn new(name: String, methods: HashMap<String, Value>) -> Self {
+        Self {
+            obj: Obj::new(ObjType::ObjClass),
+            name,
+            methods,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ObjInstance {
+    pub obj: Obj,
+    pub klass: ObjClass,
+    pub fields: HashMap<String, Value>,
+}
+impl ObjInstance {
+    pub fn new(klass: ObjClass, fields: HashMap<String, Value>) -> Self {
+        Self {
+            obj: Obj::new(ObjType::ObjClass),
+            klass,
+            fields,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ObjBoundMethod {
+    pub obj: Obj,
+    pub receiver: Value,
+    pub method: ObjClosure,
+}
+
 pub unsafe fn as_obj_string(obj: *mut Obj) -> *mut ObjString {
     debug_assert!((*obj).obj_type == ObjType::ObjString);
     obj as *mut ObjString
 }
+
+pub unsafe fn as_obj_closure(obj: *mut Obj) -> *mut ObjClosure {
+    debug_assert!((*obj).obj_type == ObjType::ObjClosure);
+    obj as *mut ObjClosure
+}
+
+pub unsafe fn as_obj_native(obj: *mut Obj) -> *mut ObjNative {
+    debug_assert!((*obj).obj_type == ObjType::ObjNative);
+    obj as *mut ObjNative
+}
+
+pub unsafe fn as_obj_class(obj: *mut Obj) -> *mut ObjClass {
+    debug_assert!((*obj).obj_type == ObjType::ObjClass);
+    obj as *mut ObjClass
+}
+
+pub unsafe fn as_obj_bound_method(obj: *mut Obj) -> *mut ObjBoundMethod {
+    debug_assert!((*obj).obj_type == ObjType::ObjBoundMethod);
+    obj as *mut ObjBoundMethod
+}
+
+// TODO make it work without pointers and unsafe

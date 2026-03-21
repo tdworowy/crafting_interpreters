@@ -1,4 +1,7 @@
-use crate::object::{Obj, ObjString, as_obj_string};
+use crate::object::{
+    Obj, ObjBoundMethod, ObjClass, ObjClosure, ObjNative, ObjString, as_obj_bound_method,
+    as_obj_class, as_obj_closure, as_obj_native, as_obj_string,
+};
 use std::fmt;
 
 #[derive(Clone, PartialEq)]
@@ -51,6 +54,34 @@ impl Value {
         match self {
             Value::Obj(ptr) => unsafe { as_obj_string(*ptr) },
             _ => panic!("Value is not a string"),
+        }
+    }
+
+    pub fn as_closure(&self) -> *mut ObjClosure {
+        match self {
+            Value::Obj(ptr) => unsafe { as_obj_closure(*ptr) },
+            _ => panic!("Value is not a closure"),
+        }
+    }
+
+    pub fn as_native(&self) -> *mut ObjNative {
+        match self {
+            Value::Obj(ptr) => unsafe { as_obj_native(*ptr) },
+            _ => panic!("Value is not a native function"),
+        }
+    }
+
+    pub fn as_class(&self) -> *mut ObjClass {
+        match self {
+            Value::Obj(ptr) => unsafe { as_obj_class(*ptr) },
+            _ => panic!("Value is not a class"),
+        }
+    }
+
+    pub fn as_bound_method(&self) -> *mut ObjBoundMethod {
+        match self {
+            Value::Obj(ptr) => unsafe { as_obj_bound_method(*ptr) },
+            _ => panic!("Value is not a bound method"),
         }
     }
 
@@ -119,3 +150,5 @@ impl Default for ValueArray {
         Self::new()
     }
 }
+
+// TODO make it work without pointers and unsafe
