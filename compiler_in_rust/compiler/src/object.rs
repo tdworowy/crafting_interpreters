@@ -1,51 +1,42 @@
 use crate::chunks::Chunk;
 use crate::value::Value;
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum ObjType {
-    ObjString,
-    ObjClosure,
-    ObjFunction,
-    ObjNative,
-    ObjUpvalue,
-    ObjClass,
-    ObjInstance,
-    ObjBoundMethod,
-}
 pub type NativeFn = fn(arg_count: usize, args: &[Value]) -> Value;
 
+/* ================== OBJECT ================== */
+
 #[derive(Debug, Clone, PartialEq)]
-pub struct Obj {
-    pub obj_type: ObjType,
-    pub is_marked: bool,
+pub enum Obj {
+    String(ObjString),
+    Function(ObjFunction),
+    Closure(ObjClosure),
+    Native(ObjNative),
+    Upvalue(ObjUpvalue),
+    Class(ObjClass),
+    Instance(ObjInstance),
+    BoundMethod(ObjBoundMethod),
 }
 
 impl Obj {
-    pub fn new(obj_type: ObjType) -> Self {
-        Self {
-            obj_type,
-            is_marked: false,
-        }
-    }
-
     pub fn print(&self) {
-        match self.obj_type {
-            ObjType::ObjString => print!("<string>"),
-            ObjType::ObjFunction => print!("<fn>"),
-            ObjType::ObjClosure => print!("<closure>"),
-            ObjType::ObjNative => print!("<native fn>"),
-            ObjType::ObjUpvalue => print!("<upvalue>"),
-            ObjType::ObjClass => print!("<class>"),
-            ObjType::ObjInstance => print!("<instance>"),
-            ObjType::ObjBoundMethod => print!("<bound method>"),
+        match self {
+            Obj::String(s) => print!("{}", s.data),
+            Obj::Function(_) => print!("<fn>"),
+            Obj::Closure(_) => print!("<closure>"),
+            Obj::Native(_) => print!("<native fn>"),
+            Obj::Upvalue(_) => print!("<upvalue>"),
+            Obj::Class(c) => print!("<class {}>", c.name),
+            Obj::Instance(_) => print!("<instance>"),
+            Obj::BoundMethod(_) => print!("<bound method>"),
         }
     }
 }
 
+/* ================== FUNCTION ================== */
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjFunction {
-    pub obj: Obj,
     pub arity: usize,
     pub upvalue_count: usize,
     pub chunk: Chunk,
@@ -55,7 +46,6 @@ pub struct ObjFunction {
 impl ObjFunction {
     pub fn new() -> Self {
         Self {
-            obj: Obj::new(ObjType::ObjFunction),
             arity: 0,
             upvalue_count: 0,
             chunk: Chunk::new(),
@@ -64,26 +54,27 @@ impl ObjFunction {
     }
 }
 
+/* ================== CLOSURE ================== */
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjClosure {
-    pub obj: Obj,
-    pub function: ObjFunction,
-    pub upvalues: Vec<ObjUpvalue>,
+    pub function: Rc<ObjFunction>,
+    pub upvalues: Vec<Rc<RefCell<ObjUpvalue>>>,
 }
 
 impl ObjClosure {
-    pub fn new(function: ObjFunction) -> Self {
+    pub fn new(function: Rc<ObjFunction>) -> Self {
         Self {
-            obj: Obj::new(ObjType::ObjClosure),
             function,
             upvalues: Vec::new(),
         }
     }
 }
 
+/* ================== UPVALUE ================== */
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjUpvalue {
-    pub obj: Obj,
     pub location: Option<Value>,
     pub closed: Value,
 }
@@ -91,7 +82,6 @@ pub struct ObjUpvalue {
 impl ObjUpvalue {
     pub fn new_open(value: Value) -> Self {
         Self {
-            obj: Obj::new(ObjType::ObjUpvalue),
             location: Some(value),
             closed: Value::Nil,
         }
@@ -99,7 +89,6 @@ impl ObjUpvalue {
 
     pub fn new_closed(value: Value) -> Self {
         Self {
-            obj: Obj::new(ObjType::ObjUpvalue),
             location: None,
             closed: value,
         }
@@ -116,10 +105,7 @@ impl ObjUpvalue {
     }
 
     pub fn get_value(&self) -> &Value {
-        match &self.location {
-            Some(v) => v,
-            None => &self.closed,
-        }
+        self.location.as_ref().unwrap_or(&self.closed)
     }
 
     pub fn set_value(&mut self, value: Value) {
@@ -130,9 +116,10 @@ impl ObjUpvalue {
     }
 }
 
+/* ================== STRING ================== */
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjString {
-    pub obj: Obj,
     pub data: String,
     pub hash: u64,
 }
@@ -140,12 +127,7 @@ pub struct ObjString {
 impl ObjString {
     pub fn from_string(s: String) -> Self {
         let hash = hash_string(&s);
-
-        Self {
-            obj: Obj::new(ObjType::ObjString),
-            data: s,
-            hash,
-        }
+        Self { data: s, hash }
     }
 
     pub fn copy_from_str(s: &str) -> Self {
@@ -155,34 +137,66 @@ impl ObjString {
     pub fn as_str(&self) -> &str {
         &self.data
     }
-
-    pub fn len(&self) -> usize {
-        self.data.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.data.is_empty()
-    }
 }
 
-#[derive(Clone)]
+/* ================== NATIVE ================== */
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct ObjNative {
-    pub obj: Obj,
     pub function: NativeFn,
 }
 
 impl ObjNative {
     pub fn new(function: NativeFn) -> Self {
-        Self {
-            obj: Obj::new(ObjType::ObjNative),
-            function,
-        }
+        Self { function }
     }
 
     pub fn call(&self, arg_count: usize, args: &[Value]) -> Value {
         (self.function)(arg_count, args)
     }
 }
+
+/* ================== CLASS ================== */
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ObjClass {
+    pub name: String,
+    pub methods: HashMap<String, Value>,
+}
+
+impl ObjClass {
+    pub fn new(name: String, methods: HashMap<String, Value>) -> Self {
+        Self { name, methods }
+    }
+}
+
+/* ================== INSTANCE ================== */
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ObjInstance {
+    pub klass: Rc<ObjClass>,
+    pub fields: HashMap<String, Value>,
+}
+
+impl ObjInstance {
+    pub fn new(klass: Rc<ObjClass>) -> Self {
+        Self {
+            klass,
+            fields: HashMap::new(),
+        }
+    }
+}
+
+/* ================== BOUND METHOD ================== */
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ObjBoundMethod {
+    pub receiver: Value,
+    pub method: Rc<ObjClosure>,
+}
+
+/* ================== HASH ================== */
+
 pub fn hash_string(s: &str) -> u64 {
     let mut hash: u64 = 2166136261;
 
@@ -193,69 +207,3 @@ pub fn hash_string(s: &str) -> u64 {
 
     hash
 }
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ObjClass {
-    pub obj: Obj,
-    pub name: String,
-    pub methods: HashMap<String, Value>,
-}
-impl ObjClass {
-    pub fn new(name: String, methods: HashMap<String, Value>) -> Self {
-        Self {
-            obj: Obj::new(ObjType::ObjClass),
-            name,
-            methods,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ObjInstance {
-    pub obj: Obj,
-    pub klass: ObjClass,
-    pub fields: HashMap<String, Value>,
-}
-impl ObjInstance {
-    pub fn new(klass: ObjClass, fields: HashMap<String, Value>) -> Self {
-        Self {
-            obj: Obj::new(ObjType::ObjClass),
-            klass,
-            fields,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ObjBoundMethod {
-    pub obj: Obj,
-    pub receiver: Value,
-    pub method: ObjClosure,
-}
-
-pub unsafe fn as_obj_string(obj: *mut Obj) -> *mut ObjString {
-    debug_assert!((*obj).obj_type == ObjType::ObjString);
-    obj as *mut ObjString
-}
-
-pub unsafe fn as_obj_closure(obj: *mut Obj) -> *mut ObjClosure {
-    debug_assert!((*obj).obj_type == ObjType::ObjClosure);
-    obj as *mut ObjClosure
-}
-
-pub unsafe fn as_obj_native(obj: *mut Obj) -> *mut ObjNative {
-    debug_assert!((*obj).obj_type == ObjType::ObjNative);
-    obj as *mut ObjNative
-}
-
-pub unsafe fn as_obj_class(obj: *mut Obj) -> *mut ObjClass {
-    debug_assert!((*obj).obj_type == ObjType::ObjClass);
-    obj as *mut ObjClass
-}
-
-pub unsafe fn as_obj_bound_method(obj: *mut Obj) -> *mut ObjBoundMethod {
-    debug_assert!((*obj).obj_type == ObjType::ObjBoundMethod);
-    obj as *mut ObjBoundMethod
-}
-
-// TODO make it work without pointers and unsafe

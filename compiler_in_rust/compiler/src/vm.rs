@@ -1,8 +1,7 @@
-use crate::object::{
-    NativeFn, Obj, ObjClass, ObjClosure, ObjInstance, ObjNative, ObjString, ObjType, ObjUpvalue,
-};
+use crate::object::{NativeFn, Obj, ObjClosure, ObjInstance, ObjNative, ObjString, ObjUpvalue};
 use crate::value::{Value, obj_val};
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct VM {
@@ -20,10 +19,10 @@ pub struct VM {
     gray_capacity: usize,
     gray_stack: Vec<Obj>,
 }
-struct CallFrame {
-    ip: usize,
-    closure: ObjClosure,
-    slots: Vec<Value>,
+pub struct CallFrame {
+    pub closure: Rc<ObjClosure>,
+    pub ip: usize,
+    pub slot_start: usize,
 }
 
 pub fn clock_native(_: usize, _: &[Value]) -> Value {
@@ -95,100 +94,110 @@ impl VM {
         self.runtime_error(format!("{fmt}{args}"));
     }
     pub fn define_native(&mut self, name: &str, function: NativeFn) {
-        self.push(obj_val(
-            Box::into_raw(Box::new(ObjString::copy_from_str(name))) as *mut Obj,
-        ));
+        let name_obj = obj_val(Obj::String(ObjString::copy_from_str(name)));
+        let native_obj = obj_val(Obj::Native(ObjNative::new(function)));
 
-        self.push(obj_val(
-            Box::into_raw(Box::new(ObjNative::new(function))) as *mut Obj
-        ));
+        self.push(name_obj.clone());
+        self.push(native_obj.clone());
 
-        let s = self.stack[0].as_string();
-        let key = unsafe { &(*s).data };
-        let value = self.stack[1].clone();
+        let key = match &*name_obj.as_obj().borrow() {
+            Obj::String(s) => s.data.clone(),
+            _ => panic!("Expected string as key"),
+        };
 
-        self.globals.entry(key.to_owned()).or_insert(value);
+        self.globals.insert(key, native_obj);
 
         self.pop();
         self.pop();
     }
-    fn call(&mut self, obj_closure: ObjClosure, arg_count: usize) -> bool {
-        if arg_count != obj_closure.function.arity {
+    fn call(&mut self, closure: Rc<ObjClosure>, arg_count: usize) -> bool {
+        if arg_count != closure.function.arity {
             self.runtime_error(format!(
                 "Expected {} arguments but got {}.",
-                obj_closure.function.arity, arg_count
+                closure.function.arity, arg_count
             ));
-            false
-        } else {
-            let mut frame: CallFrame = self.call_frames.pop().unwrap();
-            frame.closure = obj_closure.clone();
-            frame.ip = obj_closure.function.chunk.code.len(); // not sure if it works
-            frame
-                .slots
-                .push(self.stack[self.stack_top as usize].to_owned());
-            true
-        }
-    }
-
-    fn call_value(&mut self, callee: Value, arg_count: usize) -> bool {
-        if !callee.is_obj() {
-            self.runtime_error("Can only call functions and classes.".to_owned());
             return false;
         }
 
-        unsafe {
-            match (*callee.as_obj()).obj_type {
-                ObjType::ObjClass => {
-                    let klass = callee.as_class();
+        if self.call_frames.len() >= 64 {
+            self.runtime_error("Stack overflow.".to_string());
+            return false;
+        }
 
-                    // Create instance
-                    let instance = ObjInstance::new((*klass).clone(), HashMap::new());
-                    let instance_ptr = Box::into_raw(Box::new(instance)) as *mut Obj;
+        let frame = CallFrame {
+            closure: closure.clone(),
+            ip: 0, // ✅ start at beginning
+            slot_start: self.stack.len() - arg_count - 1,
+        };
 
-                    // Replace callee slot with instance
-                    self.stack[self.stack_top - arg_count - 1] = obj_val(instance_ptr);
+        self.call_frames.push(frame);
+        true
+    }
 
-                    // Call initializer if exists
-                    if let Some(init) = (*klass).methods.get("init") {
-                        self.call(init.as_closure(), arg_count)
-                    } else {
-                        if arg_count != 0 {
-                            self.runtime_error(format!("Expected 0 arguments, got {}.", arg_count));
-                            return false;
-                        }
-                        true
+    fn call_value(&mut self, callee: Value, arg_count: usize) -> bool {
+        let obj_rc = match callee {
+            Value::Obj(ref o) => o.clone(),
+            _ => {
+                self.runtime_error("Can only call functions and classes.".to_owned());
+                return false;
+            }
+        };
+
+        let obj = obj_rc.borrow();
+
+        match &*obj {
+            Obj::Class(klass) => {
+                // Create instance
+                let instance = Obj::Instance(ObjInstance::new(std::rc::Rc::new(klass.clone())));
+
+                let instance_val = obj_val(instance);
+
+                // Replace callee slot with instance
+                let slot = self.stack_top - arg_count - 1;
+                self.stack[slot] = instance_val.clone();
+
+                // Call initializer if exists
+                if let Some(init) = klass.methods.get("init") {
+                    self.call_value(init.clone(), arg_count)
+                } else {
+                    if arg_count != 0 {
+                        self.runtime_error(format!("Expected 0 arguments, got {}.", arg_count));
+                        return false;
                     }
-                }
-
-                ObjType::ObjClosure => self.call(*callee.as_closure(), arg_count),
-
-                ObjType::ObjNative => {
-                    let native = callee.as_native();
-
-                    let args_start = self.stack_top - arg_count;
-                    let result =
-                        ((*native).function)(arg_count, &self.stack[args_start..self.stack_top]);
-
-                    // Pop args + callee, push result
-                    self.stack_top -= arg_count + 1;
-                    self.push(result);
-
                     true
                 }
+            }
 
-                ObjType::ObjBoundMethod => {
-                    let bound = callee.as_bound_method();
+            Obj::Closure(c) => self.call(Rc::from(c.clone()), arg_count),
 
-                    // Replace callee with receiver
-                    self.stack[self.stack_top - arg_count - 1] = (*bound).receiver.clone();
-                    let method = (*bound).method.clone();
-                    self.call(method, arg_count)
-                }
+            Obj::Native(native) => {
+                let args_start = self.stack_top - arg_count;
 
-                _ => {
-                    self.runtime_error("Can only call functions and classes.".to_owned());
-                    false
-                }
+                let result = (native.function)(arg_count, &self.stack[args_start..self.stack_top]);
+
+                // Pop args + callee, push result
+                self.stack_top -= arg_count + 1;
+                self.push(result);
+
+                true
+            }
+
+            Obj::BoundMethod(bound) => {
+                // Replace callee with receiver
+                let slot = self.stack_top - arg_count - 1;
+                self.stack[slot] = bound.receiver.clone();
+
+                let method = Value::Obj(std::rc::Rc::new(std::cell::RefCell::new(Obj::Closure(
+                    (*bound.method).clone(),
+                ))));
+
+                drop(obj);
+                self.call_value(method, arg_count)
+            }
+
+            _ => {
+                self.runtime_error("Can only call functions and classes.".to_owned());
+                false
             }
         }
     }
