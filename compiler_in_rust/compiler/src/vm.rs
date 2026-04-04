@@ -1,4 +1,6 @@
-use crate::object::{NativeFn, Obj, ObjClosure, ObjInstance, ObjNative, ObjString, ObjUpvalue};
+use crate::object::{
+    NativeFn, Obj, ObjClass, ObjClosure, ObjInstance, ObjNative, ObjString, ObjUpvalue,
+};
 use crate::value::{Value, obj_val};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -63,7 +65,7 @@ impl VM {
         self.stack.pop().expect("Can't pop value from stack")
     }
     fn peek(&mut self, distance: i64) -> Value {
-        self.stack[self.stack_top as usize - distance as usize].to_owned()
+        self.stack[self.stack_top - distance as usize].to_owned()
     }
     fn reset_stack(&mut self) {
         self.stack_top = 0;
@@ -148,7 +150,7 @@ impl VM {
         match &*obj {
             Obj::Class(klass) => {
                 // Create instance
-                let instance = Obj::Instance(ObjInstance::new(std::rc::Rc::new(klass.clone())));
+                let instance = Obj::Instance(ObjInstance::new(Rc::new(klass.clone())));
 
                 let instance_val = obj_val(instance);
 
@@ -187,7 +189,7 @@ impl VM {
                 let slot = self.stack_top - arg_count - 1;
                 self.stack[slot] = bound.receiver.clone();
 
-                let method = Value::Obj(std::rc::Rc::new(std::cell::RefCell::new(Obj::Closure(
+                let method = Value::Obj(Rc::new(std::cell::RefCell::new(Obj::Closure(
                     (*bound.method).clone(),
                 ))));
 
@@ -200,5 +202,15 @@ impl VM {
                 false
             }
         }
+    }
+    fn invoke_from_class(&mut self, klass: Rc<ObjClass>, name: String, arg_count: usize) -> bool {
+        let method = match klass.methods.get(&name) {
+            Some(method) => method.clone(),
+            None => {
+                self.runtime_error(format!("Undefined property {}", name));
+                return false;
+            }
+        };
+        self.call_value(method, arg_count)
     }
 }

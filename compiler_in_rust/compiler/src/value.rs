@@ -101,7 +101,7 @@ impl Value {
             Value::Obj(obj) => {
                 let obj = obj.borrow();
                 match &*obj {
-                    Obj::String(s) => print!("{}", s.data),
+                    Obj::String(s) => print!("{}", &s.data),
                     Obj::Closure(_) => print!("<closure>"),
                     Obj::Native(_) => print!("<native fn>"),
                     Obj::Class(_) => print!("<class>"),
