@@ -1,17 +1,15 @@
-use crate::object::{
-    Obj, ObjBoundMethod, ObjClass, ObjClosure, ObjNative, ObjString, as_obj_bound_method,
-    as_obj_class, as_obj_closure, as_obj_native, as_obj_string,
-};
-use std::fmt;
+use crate::object::Obj;
+use std::{cell::RefCell, fmt, rc::Rc};
 
 #[derive(Clone, PartialEq)]
 pub enum Value {
     Bool(bool),
     Nil,
     Number(f64),
-    Obj(*mut Obj),
+    Obj(Rc<RefCell<Obj>>),
 }
 
+/* ==== Value impl ==== */
 impl Value {
     pub fn is_bool(&self) -> bool {
         matches!(self, Value::Bool(_))
@@ -43,45 +41,55 @@ impl Value {
         }
     }
 
-    pub fn as_obj(&self) -> *mut Obj {
+    pub fn as_obj(&self) -> Rc<RefCell<Obj>> {
         match self {
-            Value::Obj(ptr) => *ptr,
+            Value::Obj(obj) => Rc::clone(obj),
             _ => panic!("Expected object"),
         }
     }
 
-    pub fn as_string(&self) -> *mut ObjString {
-        match self {
-            Value::Obj(ptr) => unsafe { as_obj_string(*ptr) },
-            _ => panic!("Value is not a string"),
+    pub fn as_string(&self) -> Rc<RefCell<Obj>> {
+        let obj = self.as_obj();
+        if matches!(*obj.borrow(), Obj::String(_)) {
+            obj
+        } else {
+            panic!("Value is not a string");
         }
     }
 
-    pub fn as_closure(&self) -> *mut ObjClosure {
-        match self {
-            Value::Obj(ptr) => unsafe { as_obj_closure(*ptr) },
-            _ => panic!("Value is not a closure"),
+    pub fn as_closure(&self) -> Rc<RefCell<Obj>> {
+        let obj = self.as_obj();
+        if matches!(*obj.borrow(), Obj::Closure(_)) {
+            obj
+        } else {
+            panic!("Value is not a closure");
         }
     }
 
-    pub fn as_native(&self) -> *mut ObjNative {
-        match self {
-            Value::Obj(ptr) => unsafe { as_obj_native(*ptr) },
-            _ => panic!("Value is not a native function"),
+    pub fn as_native(&self) -> Rc<RefCell<Obj>> {
+        let obj = self.as_obj();
+        if matches!(*obj.borrow(), Obj::Native(_)) {
+            obj
+        } else {
+            panic!("Value is not a native");
         }
     }
 
-    pub fn as_class(&self) -> *mut ObjClass {
-        match self {
-            Value::Obj(ptr) => unsafe { as_obj_class(*ptr) },
-            _ => panic!("Value is not a class"),
+    pub fn as_class(&self) -> Rc<RefCell<Obj>> {
+        let obj = self.as_obj();
+        if matches!(*obj.borrow(), Obj::Class(_)) {
+            obj
+        } else {
+            panic!("Value is not a class");
         }
     }
 
-    pub fn as_bound_method(&self) -> *mut ObjBoundMethod {
-        match self {
-            Value::Obj(ptr) => unsafe { as_obj_bound_method(*ptr) },
-            _ => panic!("Value is not a bound method"),
+    pub fn as_bound_method(&self) -> Rc<RefCell<Obj>> {
+        let obj = self.as_obj();
+        if matches!(*obj.borrow(), Obj::BoundMethod(_)) {
+            obj
+        } else {
+            panic!("Value is not a bound method");
         }
     }
 
@@ -90,24 +98,34 @@ impl Value {
             Value::Bool(b) => print!("{}", if *b { "true" } else { "false" }),
             Value::Nil => print!("nil"),
             Value::Number(n) => print!("{n}"),
-            Value::Obj(ptr) => unsafe {
-                (**ptr).print();
-            },
+            Value::Obj(obj) => {
+                let obj = obj.borrow();
+                match &*obj {
+                    Obj::String(s) => print!("{}", s.data),
+                    Obj::Closure(_) => print!("<closure>"),
+                    Obj::Native(_) => print!("<native fn>"),
+                    Obj::Class(_) => print!("<class>"),
+                    Obj::BoundMethod(_) => print!("<bound method>"),
+                    _ => {}
+                }
+            }
         }
     }
 }
 
+/* ==== Debug ==== */
 impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Bool(v) => write!(f, "Bool({})", v),
             Value::Nil => write!(f, "Nil"),
             Value::Number(n) => write!(f, "Number({})", n),
-            Value::Obj(ptr) => write!(f, "Obj({:p})", ptr),
+            Value::Obj(_) => write!(f, "Obj(...)"),
         }
     }
 }
 
+/* ==== Constructors ==== */
 pub fn bool_val(value: bool) -> Value {
     Value::Bool(value)
 }
@@ -120,10 +138,11 @@ pub fn number_val(value: f64) -> Value {
     Value::Number(value)
 }
 
-pub fn obj_val(obj: *mut Obj) -> Value {
-    Value::Obj(obj)
+pub fn obj_val(obj: Obj) -> Value {
+    Value::Obj(Rc::new(RefCell::new(obj)))
 }
 
+/* ==== ValueArray ==== */
 #[derive(Debug, Clone)]
 pub struct ValueArray {
     pub values: Vec<Value>,
@@ -150,5 +169,3 @@ impl Default for ValueArray {
         Self::new()
     }
 }
-
-// TODO make it work without pointers and unsafe
