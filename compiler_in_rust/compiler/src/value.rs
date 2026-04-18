@@ -1,4 +1,4 @@
-use crate::object::Obj;
+use crate::object::{Obj, ObjClosure, ObjString};
 use std::{cell::RefCell, fmt, rc::Rc};
 
 #[derive(Clone, PartialEq)]
@@ -48,21 +48,20 @@ impl Value {
         }
     }
 
-    pub fn as_string(&self) -> Rc<RefCell<Obj>> {
+    pub fn as_string(&self) -> Rc<ObjString> {
         let obj = self.as_obj();
-        if matches!(*obj.borrow(), Obj::String(_)) {
-            obj
-        } else {
-            panic!("Value is not a string");
+        match &*obj.borrow() {
+            Obj::String(string) => Rc::new(string.clone()),
+            _ => panic!("Value is not a closure"),
         }
     }
 
-    pub fn as_closure(&self) -> Rc<RefCell<Obj>> {
+    pub fn as_closure(&self) -> Rc<ObjClosure> {
         let obj = self.as_obj();
-        if matches!(*obj.borrow(), Obj::Closure(_)) {
-            obj
-        } else {
-            panic!("Value is not a closure");
+
+        match &*obj.borrow() {
+            Obj::Closure(closure) => Rc::new(closure.clone()),
+            _ => panic!("Value is not a closure"),
         }
     }
 

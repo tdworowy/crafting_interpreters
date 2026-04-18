@@ -1,5 +1,6 @@
 use crate::object::{
-    NativeFn, Obj, ObjClass, ObjClosure, ObjInstance, ObjNative, ObjString, ObjUpvalue,
+    NativeFn, Obj, ObjBoundMethod, ObjClass, ObjClosure, ObjInstance, ObjNative, ObjString,
+    ObjUpvalue,
 };
 use crate::value::{Value, obj_val};
 use std::collections::HashMap;
@@ -13,7 +14,7 @@ pub struct VM {
     globals: HashMap<String, Value>,
     strings: HashMap<String, Value>,
     init_string: ObjString,
-    open_upvalue: Option<ObjUpvalue>,
+    open_upvalues: Vec<Rc<ObjUpvalue>>,
     bytes_allocated: usize,
     next_gc: usize,
     objects: Vec<Obj>,
@@ -43,7 +44,7 @@ impl VM {
             globals: Default::default(),
             strings: Default::default(),
             init_string: ObjString::from_string("init".to_owned()),
-            open_upvalue: None,
+            open_upvalues: vec![],
             bytes_allocated: 0,
             next_gc: 0,
             objects: vec![],
@@ -70,7 +71,7 @@ impl VM {
     fn reset_stack(&mut self) {
         self.stack_top = 0;
         self.stack = vec![];
-        self.open_upvalue = None;
+        self.open_upvalues = vec![];
     }
     fn runtime_error(&mut self, msg: String) {
         eprintln!("{msg}");
@@ -151,7 +152,6 @@ impl VM {
             Obj::Class(klass) => {
                 // Create instance
                 let instance = Obj::Instance(ObjInstance::new(Rc::new(klass.clone())));
-
                 let instance_val = obj_val(instance);
 
                 // Replace callee slot with instance
@@ -174,9 +174,7 @@ impl VM {
 
             Obj::Native(native) => {
                 let args_start = self.stack_top - arg_count;
-
                 let result = (native.function)(arg_count, &self.stack[args_start..self.stack_top]);
-
                 // Pop args + callee, push result
                 self.stack_top -= arg_count + 1;
                 self.push(result);
@@ -212,5 +210,40 @@ impl VM {
             }
         };
         self.call_value(method, arg_count)
+    }
+    fn bind_method(&mut self, klass: Rc<ObjClass>, name: String) -> bool {
+        let method = match klass.methods.get(&name) {
+            Some(method) => method.clone(),
+            None => {
+                self.runtime_error(format!("Undefined property {}", name));
+                return false;
+            }
+        };
+
+        let receiver = self.peek(0);
+        let closure = method.as_closure();
+        let bound = ObjBoundMethod {
+            receiver,
+            method: closure,
+        };
+        self.pop();
+        self.push(Value::Obj(Rc::new(std::cell::RefCell::new(
+            Obj::BoundMethod(bound),
+        ))));
+
+        true
+    }
+    fn capture_upvalue(&mut self, local: usize) -> Rc<ObjUpvalue> {
+        for upvalue in &self.open_upvalues {
+            if upvalue.location == Some(local) {
+                return upvalue.clone();
+            }
+        }
+        let new_upvalue = Rc::new(ObjUpvalue {
+            location: Some(local),
+            closed: Value::Nil,
+        });
+        self.open_upvalues.push(new_upvalue.clone());
+        new_upvalue
     }
 }

@@ -1,6 +1,6 @@
 use crate::chunks::Chunk;
 use crate::value::Value;
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
 pub type NativeFn = fn(arg_count: usize, args: &[Value]) -> Value;
 
@@ -59,7 +59,7 @@ impl ObjFunction {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjClosure {
     pub function: Rc<ObjFunction>,
-    pub upvalues: Vec<Rc<RefCell<ObjUpvalue>>>,
+    pub upvalues: Vec<Rc<ObjUpvalue>>,
 }
 
 impl ObjClosure {
@@ -72,17 +72,16 @@ impl ObjClosure {
 }
 
 /* ================== UPVALUE ================== */
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjUpvalue {
-    pub location: Option<Value>,
-    pub closed: Value,
+    pub location: Option<usize>, // stack slot index if open
+    pub closed: Value,           // captured value if closed
 }
 
 impl ObjUpvalue {
-    pub fn new_open(value: Value) -> Self {
+    pub fn new_open(slot: usize) -> Self {
         Self {
-            location: Some(value),
+            location: Some(slot),
             closed: Value::Nil,
         }
     }
@@ -98,19 +97,22 @@ impl ObjUpvalue {
         self.location.is_some()
     }
 
-    pub fn close(&mut self) {
-        if let Some(v) = self.location.take() {
-            self.closed = v;
+    pub fn close(&mut self, stack: &[Value]) {
+        if let Some(slot) = self.location.take() {
+            self.closed = stack[slot].clone();
         }
     }
 
-    pub fn get_value(&self) -> &Value {
-        self.location.as_ref().unwrap_or(&self.closed)
+    pub fn get_value<'a>(&'a self, stack: &'a [Value]) -> &'a Value {
+        match self.location {
+            Some(slot) => &stack[slot],
+            None => &self.closed,
+        }
     }
 
-    pub fn set_value(&mut self, value: Value) {
-        match &mut self.location {
-            Some(v) => *v = value,
+    pub fn set_value(&mut self, stack: &mut [Value], value: Value) {
+        match self.location {
+            Some(slot) => stack[slot] = value,
             None => self.closed = value,
         }
     }
