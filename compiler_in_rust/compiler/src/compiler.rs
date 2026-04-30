@@ -1,11 +1,13 @@
-use std::collections::HashMap;
-
-use crate::chunks::Value;
+use crate::object::{Obj, ObjString};
+use crate::value::Value;
 use crate::{
     chunks::{Chunk, OpCode},
     object::ObjFunction,
     scanner::{Scanner, Token, TokenType},
 };
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 enum Precedence {
@@ -353,7 +355,8 @@ impl Compiler {
     }
     fn string(&mut self, can_assign: bool) {
         let value = self.previous.lexeme.clone().replace("\"", "");
-        self.emit_constant(Value::String(value));
+        let obj_string = ObjString::from_string(value);
+        self.emit_constant(Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string)))));
     }
     fn number(&mut self, can_assign: bool) {
         let value: f64 = self.previous.lexeme.parse().unwrap_or(0.0);
@@ -472,16 +475,17 @@ impl Compiler {
         (self.current_chunk().constants.len() - 1) as isize
     }
     fn identifier_constant_once(&mut self, name: &Token) -> isize {
-        let val = Value::String(name.lexeme.clone());
+        let obj_string = ObjString::from_string(name.lexeme.clone());
+        let value = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
         if let Some(i) = self
             .current_chunk()
             .constants
             .iter()
-            .position(|c| c == &val)
+            .position(|c| c == &value)
         {
             i as isize
         } else {
-            self.make_constant(val)
+            self.make_constant(value)
         }
     }
     fn named_variable(&mut self, name: Token, can_assign: bool) {
@@ -858,10 +862,8 @@ impl Compiler {
         self.scanner = compiler.scanner.clone();
         self.current = compiler.current.clone();
         self.previous = compiler.previous.clone();
-
-        let function_constant = self
-            .current_chunk()
-            .add_constant(Value::Function(Box::new(function_obj)));
+        let function_value = Value::Obj(Rc::new(RefCell::new(Obj::Function(function_obj))));
+        let function_constant = self.current_chunk().add_constant(function_value);
         self.emit_byte(OpCode::Closure(function_constant));
 
         for upvalue in &compiler.upvalues {
@@ -1040,6 +1042,8 @@ mod tests {
 
     #[test]
     fn test_expression2() {
+        let obj_string = ObjString::from_string("x".to_owned());
+        let value = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
         let expected_chunk = Chunk {
             code: vec![
                 OpCode::Constant(0),
@@ -1050,11 +1054,7 @@ mod tests {
                 OpCode::OpReturn,
             ],
             lines: vec![1, 1, 1, 1, 1, 1],
-            constants: vec![
-                Value::Number(2f64),
-                Value::Number(3f64),
-                Value::String("x".to_owned()),
-            ],
+            constants: vec![Value::Number(2f64), Value::Number(3f64), value],
             count: 6,
         };
         let source = "var x = 2 + 3;".to_owned();
@@ -1066,6 +1066,8 @@ mod tests {
 
     #[test]
     fn test_statement() {
+        let obj_string = ObjString::from_string("test".to_owned());
+        let value = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
         let expected_chunk = Chunk {
             code: vec![
                 OpCode::Constant(0),
@@ -1074,7 +1076,7 @@ mod tests {
                 OpCode::OpReturn,
             ],
             lines: vec![1, 1, 1, 1],
-            constants: vec!["test".into()],
+            constants: vec![value],
             count: 4,
         };
         let source = "print \"test\";".to_owned();
@@ -1086,6 +1088,10 @@ mod tests {
 
     #[test]
     fn test_print_variable() {
+        let obj_string = ObjString::from_string("test".to_owned());
+        let value1 = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
+        let obj_string = ObjString::from_string("x".to_owned());
+        let value2 = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
         let expected_chunk = Chunk {
             code: vec![
                 OpCode::Constant(0),
@@ -1096,10 +1102,7 @@ mod tests {
                 OpCode::OpReturn,
             ],
             lines: vec![1, 1, 1, 1, 1, 1],
-            constants: vec![
-                Value::String("test".to_owned()),
-                Value::String("x".to_owned()),
-            ],
+            constants: vec![value1, value2],
             count: 6,
         };
 
@@ -1130,6 +1133,10 @@ mod tests {
         internal_fn.arity = 1;
         internal_fn.chunk = expected_inner_chunk.clone();
 
+        let obj_string = ObjString::from_string("test".to_owned());
+        let value_str = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
+        let value_function = Value::Obj(Rc::new(RefCell::new(Obj::Function(internal_fn))));
+
         let mut expected_chunk = Chunk {
             code: vec![
                 // fun test(x) { ... }
@@ -1148,11 +1155,7 @@ mod tests {
             constants: vec![],
             count: 8,
         };
-        expected_chunk.constants = vec![
-            Value::Function(Box::new(internal_fn)),
-            Value::String("test".into()),
-            Value::Number(10f64),
-        ];
+        expected_chunk.constants = vec![value_function, value_str, Value::Number(10f64)];
 
         let source = r#"fun test(x) {
                                 var y = 2 + x;
@@ -1165,7 +1168,7 @@ mod tests {
         let chunk = compiler.current_chunk();
 
         let test_fn_value = &script_fn.chunk.constants[0];
-        let test_fn = test_fn_value.as_function();
+        let test_fn = test_fn_value.as_function().clone();
         assert_eq!(test_fn.name, "test");
         assert_eq!(test_fn.arity, 1);
         assert_eq!(test_fn.chunk, expected_inner_chunk);
@@ -1175,6 +1178,8 @@ mod tests {
 
     #[test]
     fn test_block() {
+        let obj_string = ObjString::from_string("x".to_owned());
+        let value = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
         let expected_chunk = Chunk {
             code: vec![
                 OpCode::Constant(0),
@@ -1192,11 +1197,7 @@ mod tests {
                 OpCode::OpReturn,
             ],
             lines: vec![2, 2, 4, 5, 5, 5, 5, 5, 6, 6, 7, 8, 8],
-            constants: vec![
-                Value::Number(10f64),
-                Value::String("x".to_owned()),
-                Value::Number(2f64),
-            ],
+            constants: vec![Value::Number(10f64), value, Value::Number(2f64)],
             count: 13,
         };
 
@@ -1218,6 +1219,8 @@ mod tests {
 
     #[test]
     fn test_class() {
+        let obj_string = ObjString::from_string("test".to_owned());
+        let value = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
         let expected_init_chunk = Chunk {
             count: 5,
             code: vec![
@@ -1228,7 +1231,7 @@ mod tests {
                 OpCode::OpReturn,
             ],
             lines: vec![3, 3, 3, 4, 4],
-            constants: vec![Value::String("test".to_owned())],
+            constants: vec![value.clone()],
         };
 
         let mut expected_init_fn = ObjFunction::new();
@@ -1248,7 +1251,7 @@ mod tests {
                 OpCode::OpReturn,
             ],
             lines: vec![6, 6, 6, 6, 7, 7],
-            constants: vec![Value::String("test".to_owned())],
+            constants: vec![value],
         };
 
         let mut expected_do_staff_fn = ObjFunction::new();
@@ -1256,6 +1259,20 @@ mod tests {
         expected_do_staff_fn.arity = 1;
         expected_do_staff_fn.upvalue_count = 0;
         expected_do_staff_fn.chunk = expected_do_staff_chunk;
+
+        let obj_string_class = ObjString::from_string("TestClass".to_owned());
+        let value_class = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_class))));
+        let obj_init = ObjString::from_string("init".to_owned());
+        let value_init = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_init))));
+        let obj_method = ObjString::from_string("doStaff".to_owned());
+        let value_method = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_method))));
+        let obj_obj = ObjString::from_string("obj".to_owned());
+        let value_obj = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_obj))));
+
+        let value_function_init =
+            Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_init_fn))));
+        let value_function_do_staff =
+            Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_do_staff_fn))));
 
         let expected_chunk = Chunk {
             count: 18,
@@ -1281,13 +1298,13 @@ mod tests {
             ],
             lines: vec![1, 1, 1, 4, 4, 7, 7, 8, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10],
             constants: vec![
-                Value::String("TestClass".to_owned()),
-                Value::String("init".to_owned()),
-                Value::Function(Box::new(expected_init_fn)),
-                Value::String("doStaff".to_owned()),
-                Value::Function(Box::new(expected_do_staff_fn)),
+                value_class,
+                value_init,
+                value_function_init,
+                value_method,
+                value_function_do_staff,
                 Value::Number(2f64),
-                Value::String("obj".to_owned()),
+                value_obj,
                 Value::Number(4f64),
             ],
         };
@@ -1357,6 +1374,8 @@ mod tests {
 
     #[test]
     fn test_while() {
+        let obj_string = ObjString::from_string("i".to_owned());
+        let value = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
         let expected_chunk = Chunk {
             code: vec![
                 OpCode::Constant(0),
@@ -1381,7 +1400,7 @@ mod tests {
             lines: vec![1, 1, 2, 2, 2, 2, 2, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5],
             constants: vec![
                 Value::Number(0f64),
-                Value::String("i".to_owned()),
+                value,
                 Value::Number(5f64),
                 Value::Number(1f64),
             ],
@@ -1450,6 +1469,16 @@ mod tests {
 
     #[test]
     fn test_if() {
+        let obj_string_a = ObjString::from_string("a".to_owned());
+        let value_a = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_a))));
+        let obj_string_b = ObjString::from_string("b".to_owned());
+        let value_b = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_b))));
+        let obj_string_a_less_b = ObjString::from_string("a is less than b".to_owned());
+        let value_a_less_b = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_a_less_b))));
+        let obj_string_a_greater_b = ObjString::from_string("a is greater than b".to_owned());
+        let value_a_greater_b =
+            Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_a_greater_b))));
+
         let expected_chunk = Chunk {
             code: vec![
                 OpCode::Constant(0),
@@ -1473,11 +1502,11 @@ mod tests {
             lines: vec![1, 1, 2, 2, 3, 3, 3, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7],
             constants: vec![
                 Value::Number(2f64),
-                Value::String("a".to_owned()),
+                value_a,
                 Value::Number(3f64),
-                Value::String("b".to_owned()),
-                Value::String("a is less than b".to_owned()),
-                Value::String("a is greater than b".to_owned()),
+                value_b,
+                value_a_less_b,
+                value_a_greater_b,
             ],
             count: 17,
         };
@@ -1516,6 +1545,7 @@ mod tests {
         expected_fun2.arity = 0;
         expected_fun2.upvalue_count = 1;
         expected_fun2.chunk = expected_inner_fun2_chunk;
+        let value_expected_fun2 = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_fun2))));
 
         let expected_inner_fun1_chunk = Chunk {
             count: 8,
@@ -1530,10 +1560,7 @@ mod tests {
                 OpCode::OpReturn,
             ],
             lines: vec![2, 2, 2, 5, 5, 5, 6, 6],
-            constants: vec![
-                Value::Number(1f64),
-                Value::Function(Box::new(expected_fun2)),
-            ],
+            constants: vec![Value::Number(1f64), value_expected_fun2],
         };
 
         let mut expected_fun1 = ObjFunction::new();
@@ -1541,6 +1568,14 @@ mod tests {
         expected_fun1.arity = 1;
         expected_fun1.upvalue_count = 0;
         expected_fun1.chunk = expected_inner_fun1_chunk;
+
+        let value_expected_fun1 = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_fun1))));
+
+        let obj_string_fun1 = ObjString::from_string("fun1".to_owned());
+        let value_string_fun1 = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_fun1))));
+
+        let obj_string_c = ObjString::from_string("c".to_owned());
+        let value_string_c = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_c))));
 
         let expected_chunk = Chunk {
             count: 11,
@@ -1559,10 +1594,10 @@ mod tests {
             ],
             lines: vec![7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 9],
             constants: vec![
-                Value::Function(Box::new(expected_fun1)),
-                Value::String("fun1".to_owned()),
+                value_expected_fun1,
+                value_string_fun1,
                 Value::Number(10f64),
-                Value::String("c".to_owned()),
+                value_string_c,
             ],
         };
 
@@ -1606,6 +1641,8 @@ mod tests {
         expected_fun2.upvalue_count = 3;
         expected_fun2.chunk = expected_inner_fun2_chunk;
 
+        let value_expected_fun2 = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_fun2))));
+
         let expected_inner_fun1_chunk = Chunk {
             count: 13,
             code: vec![
@@ -1627,7 +1664,7 @@ mod tests {
             constants: vec![
                 Value::Number(1f64),
                 Value::Number(10f64),
-                Value::Function(Box::new(expected_fun2)),
+                value_expected_fun2,
             ],
         };
 
@@ -1636,6 +1673,14 @@ mod tests {
         expected_fun1.arity = 1;
         expected_fun1.upvalue_count = 0;
         expected_fun1.chunk = expected_inner_fun1_chunk;
+
+        let value_expected_fun1 = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_fun1))));
+
+        let obj_string_fun1 = ObjString::from_string("fun1".to_owned());
+        let value_string_fun1 = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_fun1))));
+
+        let obj_string_c = ObjString::from_string("c".to_owned());
+        let value_string_c = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_c))));
 
         let expected_chunk = Chunk {
             count: 11,
@@ -1654,10 +1699,10 @@ mod tests {
             ],
             lines: vec![9, 9, 10, 10, 10, 10, 11, 11, 11, 11, 11],
             constants: vec![
-                Value::Function(Box::new(expected_fun1)),
-                Value::String("fun1".to_owned()),
+                value_expected_fun1,
+                value_string_fun1,
                 Value::Number(10f64),
-                Value::String("c".to_owned()),
+                value_string_c,
             ],
         };
 
@@ -1700,11 +1745,13 @@ mod tests {
         expected_fun2.upvalue_count = 0;
         expected_fun2.chunk = expected_inner_fun2_chunk;
 
+        let value_expected_fun2 = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_fun2))));
+
         let expected_inner_fun1_chunk = Chunk {
             count: 3,
             code: vec![OpCode::Closure(0), OpCode::GetLocal(1), OpCode::OpReturn],
             lines: vec![4, 5, 5],
-            constants: vec![Value::Function(Box::new(expected_fun2))],
+            constants: vec![value_expected_fun2],
         };
 
         let mut expected_fun1 = ObjFunction::new();
@@ -1712,6 +1759,14 @@ mod tests {
         expected_fun1.arity = 0;
         expected_fun1.upvalue_count = 0;
         expected_fun1.chunk = expected_inner_fun1_chunk;
+
+        let value_expected_fun1 = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_fun1))));
+
+        let obj_string_fun1 = ObjString::from_string("fun1".to_owned());
+        let value_string_fun1 = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_fun1))));
+
+        let obj_string_c = ObjString::from_string("c".to_owned());
+        let value_string_c = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_c))));
 
         let expected_chunk = Chunk {
             count: 10,
@@ -1728,11 +1783,7 @@ mod tests {
                 OpCode::OpReturn,
             ],
             lines: vec![6, 6, 7, 7, 7, 8, 8, 8, 8, 8],
-            constants: vec![
-                Value::Function(Box::new(expected_fun1)),
-                Value::String("fun1".to_owned()),
-                Value::String("c".to_owned()),
-            ],
+            constants: vec![value_expected_fun1, value_string_fun1, value_string_c],
         };
 
         let source = r#"fun fun1() {
@@ -1754,6 +1805,9 @@ mod tests {
     #[test]
     fn test_closure4() {
         // inner-most: fun fun3() { return x + 5; }
+        let obj_string_x = ObjString::from_string("x".to_owned());
+        let value_string_x = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_x))));
+
         let expected_fun3_chunk = Chunk {
             count: 4,
             code: vec![
@@ -1763,7 +1817,7 @@ mod tests {
                 OpCode::OpReturn,
             ],
             lines: vec![5, 5, 5, 5],
-            constants: vec![Value::String("x".to_owned()), Value::Number(5f64)],
+            constants: vec![value_string_x, Value::Number(5f64)],
         };
         let mut expected_fun3 = ObjFunction::new();
         expected_fun3.name = "fun3".to_owned();
@@ -1771,18 +1825,25 @@ mod tests {
         expected_fun3.upvalue_count = 0;
         expected_fun3.chunk = expected_fun3_chunk;
 
+        let value_expected_fun3 = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_fun3))));
+
         // middle: fun fun2() { fun fun3() { ... } return fun3 }
         let expected_fun2_chunk = Chunk {
             count: 3,
             code: vec![OpCode::Closure(0), OpCode::GetLocal(1), OpCode::OpReturn],
             lines: vec![6, 7, 7],
-            constants: vec![Value::Function(Box::new(expected_fun3))],
+            constants: vec![value_expected_fun3],
         };
         let mut expected_fun2 = ObjFunction::new();
         expected_fun2.name = "fun2".to_owned();
         expected_fun2.arity = 0;
         expected_fun2.upvalue_count = 0;
         expected_fun2.chunk = expected_fun2_chunk;
+
+        let obj_string_x = ObjString::from_string("x".to_owned());
+        let value_string_x = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_x))));
+
+        let value_expected_fun2 = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_fun2))));
 
         // outer: fun fun1() { let x = 10; ... return fun2; }
         let expected_fun1_chunk = Chunk {
@@ -1798,18 +1859,20 @@ mod tests {
                 OpCode::OpReturn,
             ],
             lines: vec![2, 2, 2, 2, 2, 8, 9, 9],
-            constants: vec![
-                Value::String("let".to_owned()),
-                Value::String("x".to_owned()),
-                Value::Number(10f64),
-                Value::Function(Box::new(expected_fun2)),
-            ],
+            constants: vec![value_string_x, Value::Number(10f64), value_expected_fun2],
         };
         let mut expected_fun1 = ObjFunction::new();
         expected_fun1.name = "fun1".to_owned();
         expected_fun1.arity = 0;
         expected_fun1.upvalue_count = 0;
         expected_fun1.chunk = expected_fun1_chunk;
+
+        let obj_string_fun1 = ObjString::from_string("fun1".to_owned());
+        let value_string_fun1 = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_fun1))));
+        let obj_string_c = ObjString::from_string("c".to_owned());
+        let value_string_c = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_c))));
+
+        let value_expected_fun1 = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_fun1))));
 
         // script chunk: var c = fun1(); print c()();
         let expected_chunk = Chunk {
@@ -1828,19 +1891,15 @@ mod tests {
                 OpCode::OpReturn,
             ],
             lines: vec![10, 10, 11, 11, 11, 12, 12, 12, 12, 12, 12],
-            constants: vec![
-                Value::Function(Box::new(expected_fun1)),
-                Value::String("fun1".to_owned()),
-                Value::String("c".to_owned()),
-            ],
+            constants: vec![value_expected_fun1, value_string_fun1, value_string_c],
         };
         let source = r#"fun fun1() {
-                                let x = 10;
+                                var x = 10;
                                 fun fun2() {
                                    fun fun3() {
                                     return x + 5;
-                                    }
-                                   return fun3
+                                   }
+                                   return fun3;
                                 }
                                 return fun2;
                             }
@@ -1856,6 +1915,8 @@ mod tests {
 
     #[test]
     fn test_recursion() {
+        let obj_string_test = ObjString::from_string("test".to_owned());
+        let value_string_test = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_test))));
         let expected_inner_test_chunk = Chunk {
             count: 17,
             code: vec![
@@ -1880,7 +1941,7 @@ mod tests {
             lines: vec![2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 5, 5, 6, 6],
             constants: vec![
                 Value::Number(0f64),
-                Value::String("test".to_owned()),
+                value_string_test,
                 Value::Number(1f64),
                 Value::Number(1f64),
             ],
@@ -1891,6 +1952,12 @@ mod tests {
         expected_test_fn.arity = 1;
         expected_test_fn.upvalue_count = 0;
         expected_test_fn.chunk = expected_inner_test_chunk;
+
+        let obj_string_test = ObjString::from_string("test".to_owned());
+        let value_string_test = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_test))));
+
+        let value_expected_test_fn =
+            Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_test_fn))));
 
         let expected_chunk = Chunk {
             count: 8,
@@ -1906,8 +1973,8 @@ mod tests {
             ],
             lines: vec![6, 6, 7, 7, 7, 7, 7, 7],
             constants: vec![
-                Value::Function(Box::new(expected_test_fn)),
-                Value::String("test".to_owned()),
+                value_expected_test_fn,
+                value_string_test,
                 Value::Number(4f64),
             ],
         };
@@ -1981,6 +2048,9 @@ mod tests {
     #[test]
     fn test_inheritance() {
         // Superclass method: doStaff() { print "Inheritance works"; }
+        let obj_string_inheritance = ObjString::from_string("Inheritance works".to_owned());
+        let value_string_inheritance =
+            Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_inheritance))));
         let expected_super_do_staff_chunk = Chunk {
             count: 4,
             code: vec![
@@ -1990,7 +2060,7 @@ mod tests {
                 OpCode::OpReturn,
             ],
             lines: vec![3, 3, 4, 4],
-            constants: vec![Value::String("Inheritance works".to_owned())],
+            constants: vec![value_string_inheritance],
         };
         let mut expected_super_do_staff_fn = ObjFunction::new();
         expected_super_do_staff_fn.name = "doStaff".to_owned();
@@ -1999,6 +2069,10 @@ mod tests {
         expected_super_do_staff_fn.chunk = expected_super_do_staff_chunk;
 
         // Subclass override: doStaff() { super.doStaff(); }
+        let obj_string_do_staff = ObjString::from_string("doStaff".to_owned());
+        let value_string_do_staff =
+            Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_do_staff))));
+
         let expected_sub_do_staff_chunk = Chunk {
             count: 4,
             code: vec![
@@ -2008,7 +2082,7 @@ mod tests {
                 OpCode::OpReturn,
             ],
             lines: vec![8, 8, 9, 9],
-            constants: vec![Value::String("doStaff".to_owned())],
+            constants: vec![value_string_do_staff],
         };
         let mut expected_sub_do_staff_fn = ObjFunction::new();
         expected_sub_do_staff_fn.name = "doStaff".to_owned();
@@ -2017,6 +2091,28 @@ mod tests {
         expected_sub_do_staff_fn.chunk = expected_sub_do_staff_chunk;
 
         // Script chunk
+        let obj_string_super_class = ObjString::from_string("superClass".to_owned());
+        let value_string_super_class =
+            Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_super_class))));
+
+        let obj_string_do_staff = ObjString::from_string("doStaff".to_owned());
+        let value_string_do_staff =
+            Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_do_staff))));
+
+        let obj_string_sub_class = ObjString::from_string("subClass".to_owned());
+        let value_string_sub_class =
+            Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_sub_class))));
+
+        let obj_string_obj = ObjString::from_string("obj".to_owned());
+        let value_string_obj = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_obj))));
+
+        let value_expected_super_do_staff_fn = Value::Obj(Rc::new(RefCell::new(Obj::Function(
+            expected_super_do_staff_fn,
+        ))));
+        let value_expected_sub_do_staff_fn = Value::Obj(Rc::new(RefCell::new(Obj::Function(
+            expected_sub_do_staff_fn,
+        ))));
+
         let expected_chunk = Chunk {
             count: 24,
             code: vec![
@@ -2049,12 +2145,12 @@ mod tests {
                 1, 1, 1, 4, 4, 5, 6, 6, 6, 6, 6, 6, 9, 9, 10, 10, 11, 11, 11, 12, 12, 12, 12, 12,
             ],
             constants: vec![
-                Value::String("superClass".to_owned()),                // 0
-                Value::String("doStaff".to_owned()),                   // 1
-                Value::Function(Box::new(expected_super_do_staff_fn)), // 2
-                Value::String("subClass".to_owned()),                  // 3
-                Value::Function(Box::new(expected_sub_do_staff_fn)),   // 4
-                Value::String("obj".to_owned()),                       // 5
+                value_string_super_class,         // 0
+                value_string_do_staff,            // 1
+                value_expected_super_do_staff_fn, // 2
+                value_string_sub_class,           // 3
+                value_expected_sub_do_staff_fn,   // 4
+                value_string_obj,                 // 5
             ],
         };
         let source = r#"class superClass {
@@ -2078,4 +2174,6 @@ mod tests {
     }
 }
 // TODO add tests:
+// fix test_closure4
+// probably test need to be rewritten
 // Error handling

@@ -1,8 +1,10 @@
+use crate::chunks::OpCode;
 use crate::object::{
     NativeFn, Obj, ObjBoundMethod, ObjClass, ObjClosure, ObjInstance, ObjNative, ObjString,
     ObjUpvalue,
 };
 use crate::value::{Value, obj_val};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -14,7 +16,7 @@ pub struct VM {
     globals: HashMap<String, Value>,
     strings: HashMap<String, Value>,
     init_string: ObjString,
-    open_upvalues: Vec<Rc<ObjUpvalue>>,
+    open_upvalues: Vec<Rc<RefCell<ObjUpvalue>>>,
     bytes_allocated: usize,
     next_gc: usize,
     objects: Vec<Obj>,
@@ -227,23 +229,49 @@ impl VM {
             method: closure,
         };
         self.pop();
-        self.push(Value::Obj(Rc::new(std::cell::RefCell::new(
-            Obj::BoundMethod(bound),
-        ))));
+        self.push(Value::Obj(Rc::new(RefCell::new(Obj::BoundMethod(bound)))));
 
         true
     }
-    fn capture_upvalue(&mut self, local: usize) -> Rc<ObjUpvalue> {
+    fn capture_upvalue(&mut self, local: usize) -> Rc<RefCell<ObjUpvalue>> {
         for upvalue in &self.open_upvalues {
-            if upvalue.location == Some(local) {
+            if upvalue.borrow().location == Some(local) {
                 return upvalue.clone();
             }
         }
-        let new_upvalue = Rc::new(ObjUpvalue {
-            location: Some(local),
-            closed: Value::Nil,
-        });
+
+        let new_upvalue = Rc::new(RefCell::new(ObjUpvalue::new_open(local)));
         self.open_upvalues.push(new_upvalue.clone());
         new_upvalue
+    }
+    fn close_upvalue(&mut self, stack: &[Value], last_index: usize) {
+        for upvalue in &self.open_upvalues {
+            let mut uv = upvalue.borrow_mut();
+
+            if let Some(loc) = uv.location {
+                if loc >= last_index {
+                    uv.close(stack);
+                }
+            }
+        }
+        self.open_upvalues.retain(|uv| uv.borrow().is_open());
+    }
+    fn define_method(&mut self, name: String) {
+        let method: Value = self.peek(0);
+        let klass = self.peek(1).as_class();
+        klass.borrow_mut().methods.insert(name, method.clone());
+        self.pop();
+    }
+    fn is_falsey(&self, value: Value) -> bool {
+        value.is_nil() || (value.is_bool() && !value.as_bool())
+    }
+    fn concatenate(&mut self) {
+        let b = self.peek(0).as_string().as_str().to_owned();
+        let a = self.peek(1).as_string().as_str().to_owned();
+        let result = format!("{a}{b}");
+        let result_obj = ObjString::from_string(result);
+        self.pop();
+        self.pop();
+        self.push(Value::Obj(Rc::new(RefCell::new(Obj::String(result_obj)))));
     }
 }

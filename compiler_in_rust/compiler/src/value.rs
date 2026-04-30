@@ -1,4 +1,4 @@
-use crate::object::{Obj, ObjClosure, ObjString};
+use crate::object::{Obj, ObjBoundMethod, ObjClass, ObjClosure, ObjFunction, ObjNative, ObjString};
 use std::{cell::RefCell, fmt, rc::Rc};
 
 #[derive(Clone, PartialEq)]
@@ -65,30 +65,34 @@ impl Value {
         }
     }
 
-    pub fn as_native(&self) -> Rc<RefCell<Obj>> {
+    pub fn as_native(&self) -> Rc<ObjNative> {
         let obj = self.as_obj();
-        if matches!(*obj.borrow(), Obj::Native(_)) {
-            obj
-        } else {
-            panic!("Value is not a native");
+        match &*obj.borrow() {
+            Obj::Native(native) => Rc::new(native.clone()),
+            _ => panic!("Value is not a native"),
         }
     }
 
-    pub fn as_class(&self) -> Rc<RefCell<Obj>> {
+    pub fn as_class(&self) -> Rc<RefCell<ObjClass>> {
         let obj = self.as_obj();
-        if matches!(*obj.borrow(), Obj::Class(_)) {
-            obj
-        } else {
-            panic!("Value is not a class");
+        match &*obj.borrow() {
+            Obj::Class(klass) => Rc::new(RefCell::from(klass.clone())),
+            _ => panic!("Value is not a klass"),
         }
     }
 
-    pub fn as_bound_method(&self) -> Rc<RefCell<Obj>> {
+    pub fn as_bound_method(&self) -> Rc<ObjBoundMethod> {
         let obj = self.as_obj();
-        if matches!(*obj.borrow(), Obj::BoundMethod(_)) {
-            obj
-        } else {
-            panic!("Value is not a bound method");
+        match &*obj.borrow() {
+            Obj::BoundMethod(boundMethod) => Rc::new(boundMethod.clone()),
+            _ => panic!("Value is not a boundMethod"),
+        }
+    }
+    pub fn as_function(&self) -> Rc<ObjFunction> {
+        let obj = self.as_obj();
+        match &*obj.borrow() {
+            Obj::Function(function) => Rc::new(function.clone()),
+            _ => panic!("Value is not a function"),
         }
     }
 

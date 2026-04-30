@@ -1,34 +1,4 @@
-use crate::object::ObjFunction;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-    Number(f64),
-    Bool(bool),
-    Nil,
-    String(String),
-    Function(Box<ObjFunction>),
-}
-
-impl From<String> for Value {
-    fn from(s: String) -> Self {
-        Value::String(s)
-    }
-}
-
-impl From<&str> for Value {
-    fn from(s: &str) -> Self {
-        Value::String(s.to_string())
-    }
-}
-
-impl Value {
-    pub fn as_function(&self) -> &ObjFunction {
-        match self {
-            Value::Function(f) => f,
-            _ => panic!("Expected function, found {:?}", self),
-        }
-    }
-}
+use crate::value::Value;
 
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
@@ -112,6 +82,9 @@ impl Default for Chunk {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::object::{Obj, ObjString};
+    use std::cell::RefCell;
+    use std::rc::Rc;
 
     #[test]
     fn chunk_new_is_empty() {
@@ -151,37 +124,22 @@ mod tests {
     #[test]
     fn add_constant_returns_index_and_stores_value() {
         let mut chunk = Chunk::new();
-
+        let str_obj1 = ObjString::from_string("hello".to_owned());
+        let str_value1 = Value::Obj(Rc::new(RefCell::new(Obj::String(str_obj1))));
         let idx0 = chunk.add_constant(Value::Number(1.25));
-        let idx1 = chunk.add_constant(Value::String("hello".to_owned()));
+        let idx1 = chunk.add_constant(str_value1);
         let idx2 = chunk.add_constant(Value::Nil);
 
         assert_eq!(idx0, 0);
         assert_eq!(idx1, 1);
         assert_eq!(idx2, 2);
 
+        let str_obj2 = ObjString::from_string("hello".to_owned());
+        let str_value2 = Value::Obj(Rc::new(RefCell::new(Obj::String(str_obj2))));
+
         assert_eq!(
             chunk.constants,
-            vec![
-                Value::Number(1.25),
-                Value::String("hello".to_owned()),
-                Value::Nil
-            ]
+            vec![Value::Number(1.25), str_value2, Value::Nil]
         );
-    }
-
-    #[test]
-    fn value_from_str_and_string_create_string_value() {
-        let v1: Value = "abc".into();
-        let v2: Value = String::from("abc").into();
-        assert_eq!(v1, Value::String("abc".to_owned()));
-        assert_eq!(v2, Value::String("abc".to_owned()));
-    }
-
-    #[test]
-    #[should_panic]
-    fn as_function_panics_if_not_a_function() {
-        let v = Value::Number(123.0);
-        let _ = v.as_function();
     }
 }
