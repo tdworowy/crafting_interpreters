@@ -9,6 +9,11 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+pub enum InterpretResult {
+    InterpretOk,
+    InterpretCompileError,
+    InterpretRuntimeError,
+}
 pub struct VM {
     call_frames: Vec<CallFrame>,
     stack: Vec<Value>,
@@ -25,7 +30,7 @@ pub struct VM {
     gray_stack: Vec<Obj>,
 }
 pub struct CallFrame {
-    pub closure: Rc<ObjClosure>,
+    pub closure: Rc<RefCell<ObjClosure>>,
     pub ip: usize,
     pub slot_start: usize,
 }
@@ -79,8 +84,8 @@ impl VM {
         eprintln!("{msg}");
 
         for frame in self.call_frames.iter().rev() {
-            let frame = frame.to_owned();
-            let function = &frame.closure.function;
+            let closure = frame.closure.borrow();
+            let function = &closure.function;
 
             let instruction_idx = frame.ip.saturating_sub(1);
             let line = function.chunk.lines[instruction_idx];
@@ -115,11 +120,12 @@ impl VM {
         self.pop();
         self.pop();
     }
-    fn call(&mut self, closure: Rc<ObjClosure>, arg_count: usize) -> bool {
-        if arg_count != closure.function.arity {
+    fn call(&mut self, closure: Rc<RefCell<ObjClosure>>, arg_count: usize) -> bool {
+        let _closure = closure.borrow();
+        if arg_count != _closure.function.arity {
             self.runtime_error(format!(
                 "Expected {} arguments but got {}.",
-                closure.function.arity, arg_count
+                _closure.function.arity, arg_count
             ));
             return false;
         }
@@ -172,7 +178,7 @@ impl VM {
                 }
             }
 
-            Obj::Closure(c) => self.call(Rc::from(c.clone()), arg_count),
+            Obj::Closure(c) => self.call(Rc::new(RefCell::new(c.clone())), arg_count),
 
             Obj::Native(native) => {
                 let args_start = self.stack_top - arg_count;
@@ -256,6 +262,21 @@ impl VM {
         }
         self.open_upvalues.retain(|uv| uv.borrow().is_open());
     }
+    fn close_upvalues(&mut self, last: usize) {
+        for upvalue in &self.open_upvalues {
+            let mut uv = upvalue.borrow_mut();
+
+            if let Some(location) = uv.location {
+                if location >= last {
+                    uv.closed = self.stack[location].clone();
+                    uv.location = None;
+                }
+            }
+        }
+
+        self.open_upvalues
+            .retain(|uv| uv.borrow().location.is_some());
+    }
     fn define_method(&mut self, name: String) {
         let method: Value = self.peek(0);
         let klass = self.peek(1).as_class();
@@ -273,5 +294,379 @@ impl VM {
         self.pop();
         self.pop();
         self.push(Value::Obj(Rc::new(RefCell::new(Obj::String(result_obj)))));
+    }
+    pub fn run(&mut self) -> InterpretResult {
+        loop {
+            let frame_index = self.call_frames.len() - 1;
+
+            let instruction = {
+                let frame = &mut self.call_frames[frame_index];
+
+                let instruction = frame.closure.borrow().function.chunk.code[frame.ip].clone();
+                frame.ip += 1;
+                instruction
+            };
+
+            match instruction {
+                OpCode::Constant(index) => {
+                    let constant = {
+                        let frame = &self.call_frames[frame_index];
+
+                        frame.closure.borrow().function.chunk.constants[index as usize].clone()
+                    };
+
+                    self.push(constant);
+                }
+
+                OpCode::Nil => {
+                    self.push(Value::Nil);
+                }
+
+                OpCode::True => {
+                    self.push(Value::Bool(true));
+                }
+
+                OpCode::False => {
+                    self.push(Value::Bool(false));
+                }
+
+                OpCode::Pop => {
+                    self.pop();
+                }
+
+                OpCode::GetLocal(slot) => {
+                    let value = {
+                        let frame = &self.call_frames[frame_index];
+
+                        self.stack[frame.slot_start + slot as usize].clone()
+                    };
+
+                    self.push(value);
+                }
+
+                OpCode::SetLocal(slot) => {
+                    let value = self.peek(0).clone();
+
+                    let index = {
+                        let frame = &self.call_frames[frame_index];
+
+                        frame.slot_start + slot as usize
+                    };
+
+                    self.stack[index] = value;
+                }
+
+                OpCode::DefineGlobal(index) => {
+                    let name = {
+                        let frame = &self.call_frames[frame_index];
+
+                        frame.closure.borrow().function.chunk.constants[index as usize].as_string()
+                    };
+
+                    let value = self.peek(0).clone();
+                    self.globals.insert(name.data.clone(), value);
+                    self.pop();
+                }
+
+                OpCode::GetGlobal(index) => {
+                    let name = {
+                        let frame = &self.call_frames[frame_index];
+
+                        frame.closure.borrow().function.chunk.constants[index as usize].as_string()
+                    };
+
+                    match self.globals.get(name.as_str()) {
+                        Some(value) => {
+                            self.push(value.clone());
+                        }
+
+                        None => {
+                            self.runtime_error(format!("Undefined variable '{}'.", name.as_str()));
+
+                            return InterpretResult::InterpretRuntimeError;
+                        }
+                    }
+                }
+
+                OpCode::SetGlobal(index) => {
+                    let name = {
+                        let frame = &self.call_frames[frame_index];
+
+                        frame.closure.borrow().function.chunk.constants[index as usize].as_string()
+                    };
+
+                    if self.globals.contains_key(&name.data) {
+                        let value = self.peek(0).clone();
+
+                        self.globals.insert(name.data.clone(), value);
+                    } else {
+                        self.runtime_error(format!("Undefined variable '{}'.", name.data));
+
+                        return InterpretResult::InterpretRuntimeError;
+                    }
+                }
+
+                OpCode::GetUpvalue(slot) => {
+                    let upvalue = {
+                        let frame = &self.call_frames[frame_index];
+
+                        frame.closure.borrow().upvalues[slot as usize].clone()
+                    };
+
+                    let value = {
+                        let uv = upvalue.borrow();
+
+                        match uv.location {
+                            Some(index) => self.stack[index].clone(),
+                            None => uv.closed.clone(),
+                        }
+                    };
+
+                    self.push(value);
+                }
+
+                OpCode::SetUpvalue(slot) => {
+                    let value = self.peek(0).clone();
+                    let upvalue = {
+                        let frame = &self.call_frames[frame_index];
+                        frame.closure.borrow().upvalues[slot as usize].clone()
+                    };
+
+                    let mut uv = upvalue.borrow_mut();
+                    match &mut uv.location {
+                        Some(index) => {
+                            self.stack[*index] = value;
+                        }
+                        None => {
+                            uv.closed = value;
+                        }
+                    }
+                }
+
+                OpCode::Equal => {
+                    let b = self.pop();
+                    let a = self.pop();
+
+                    self.push(Value::Bool(a == b));
+                }
+
+                OpCode::Greater => {
+                    if !self.peek(0).is_number() || !self.peek(1).is_number() {
+                        self.runtime_error("Operands must be numbers.".to_string());
+
+                        return InterpretResult::InterpretRuntimeError;
+                    }
+
+                    let b = self.pop().as_number();
+                    let a = self.pop().as_number();
+
+                    self.push(Value::Bool(a > b));
+                }
+
+                OpCode::Less => {
+                    if !self.peek(0).is_number() || !self.peek(1).is_number() {
+                        self.runtime_error("Operands must be numbers.".to_string());
+
+                        return InterpretResult::InterpretRuntimeError;
+                    }
+
+                    let b = self.pop().as_number();
+                    let a = self.pop().as_number();
+
+                    self.push(Value::Bool(a < b));
+                }
+
+                OpCode::Add => {
+                    let b = self.pop();
+                    let a = self.pop();
+
+                    match (a, b) {
+                        (Value::Number(a), Value::Number(b)) => {
+                            self.push(Value::Number(a + b));
+                        }
+
+                        (Value::Obj(a), Value::Obj(b)) => {
+                            let a = a.borrow();
+                            let b = b.borrow();
+
+                            match (&*a, &*b) {
+                                (Obj::String(a), Obj::String(b)) => {
+                                    let result = format!("{}{}", a.data, b.data);
+
+                                    self.push(Value::Obj(Rc::new(RefCell::new(Obj::String(
+                                        ObjString::from_string(result),
+                                    )))));
+                                }
+
+                                _ => {
+                                    self.runtime_error(
+                                        "Operands must be two numbers or two strings.".to_string(),
+                                    );
+
+                                    return InterpretResult::InterpretRuntimeError;
+                                }
+                            }
+                        }
+
+                        _ => {
+                            self.runtime_error(
+                                "Operands must be two numbers or two strings.".to_string(),
+                            );
+
+                            return InterpretResult::InterpretRuntimeError;
+                        }
+                    }
+                }
+
+                OpCode::Subtract => {
+                    if !self.peek(0).is_number() || !self.peek(1).is_number() {
+                        self.runtime_error("Operands must be numbers.".to_string());
+
+                        return InterpretResult::InterpretRuntimeError;
+                    }
+
+                    let b = self.pop().as_number();
+                    let a = self.pop().as_number();
+
+                    self.push(Value::Number(a - b));
+                }
+
+                OpCode::Multiply => {
+                    if !self.peek(0).is_number() || !self.peek(1).is_number() {
+                        self.runtime_error("Operands must be numbers.".to_string());
+
+                        return InterpretResult::InterpretRuntimeError;
+                    }
+
+                    let b = self.pop().as_number();
+                    let a = self.pop().as_number();
+
+                    self.push(Value::Number(a * b));
+                }
+
+                OpCode::Divide => {
+                    if !self.peek(0).is_number() || !self.peek(1).is_number() {
+                        self.runtime_error("Operands must be numbers.".to_string());
+
+                        return InterpretResult::InterpretRuntimeError;
+                    }
+
+                    let b = self.pop().as_number();
+                    let a = self.pop().as_number();
+
+                    self.push(Value::Number(a / b));
+                }
+
+                OpCode::Not => {
+                    let value = self.pop();
+
+                    self.push(Value::Bool(self.is_falsey(value)));
+                }
+
+                OpCode::Negate => {
+                    if !self.peek(0).is_number() {
+                        self.runtime_error("Operand must be a number.".to_string());
+
+                        return InterpretResult::InterpretRuntimeError;
+                    }
+
+                    let value = self.pop().as_number();
+
+                    self.push(Value::Number(-value));
+                }
+
+                OpCode::Print => {
+                    println!("{:?}", self.pop());
+                }
+
+                OpCode::Jump(offset) => {
+                    let frame = &mut self.call_frames[frame_index];
+
+                    frame.ip += offset as usize;
+                }
+
+                OpCode::JumpIfFalse(offset) => {
+                    let value = self.peek(0);
+                    if self.is_falsey(value) {
+                        let frame = &mut self.call_frames[frame_index];
+
+                        frame.ip += offset as usize;
+                    }
+                }
+
+                OpCode::Loop(offset) => {
+                    let frame = &mut self.call_frames[frame_index];
+
+                    frame.ip -= offset as usize;
+                }
+
+                OpCode::Call(arg_count) => {
+                    let callee = self.peek(arg_count as i64).clone();
+
+                    if !self.call_value(callee, arg_count as usize) {
+                        return InterpretResult::InterpretRuntimeError;
+                    }
+                }
+
+                OpCode::Closure(index) => {
+                    let function = {
+                        let frame = &self.call_frames[frame_index];
+
+                        frame.closure.borrow().function.chunk.constants[index as usize]
+                            .as_function()
+                    };
+
+                    let closure = ObjClosure::new(function);
+
+                    self.push(Value::Obj(Rc::new(RefCell::new(Obj::Closure(closure)))));
+                }
+
+                OpCode::CloseUpvalue => {
+                    let last = self.stack.len() - 1;
+
+                    self.close_upvalues(last);
+
+                    self.pop();
+                }
+
+                OpCode::Return => {
+                    let result = self.pop();
+
+                    let frame = self.call_frames.pop().unwrap();
+
+                    self.close_upvalues(frame.slot_start);
+
+                    if self.call_frames.is_empty() {
+                        self.pop();
+
+                        return InterpretResult::InterpretOk;
+                    }
+
+                    self.stack.truncate(frame.slot_start);
+
+                    self.push(result);
+                }
+
+                OpCode::Class(index) => {
+                    let name = {
+                        let frame = &self.call_frames[frame_index];
+
+                        frame.closure.borrow().function.chunk.constants[index as usize].as_string()
+                    };
+                    let class = ObjClass {
+                        name: name.data.clone(),
+                        methods: HashMap::new(),
+                    };
+
+                    self.push(Value::Obj(Rc::new(RefCell::new(Obj::Class(class)))));
+                }
+
+                OpCode::Nop => {}
+
+                _ => {
+                    todo!("Opcode not implemented");
+                }
+            }
+        }
     }
 }

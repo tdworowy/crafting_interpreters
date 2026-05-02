@@ -22,28 +22,26 @@ pub enum OpCode {
     Loop(i16),
     Closure(isize),
     Method(isize),
-    OpConstant,
-    OpNil,
-    OpTrue,
-    OpFalse,
-    OpAdd,
-    OpSubtract,
-    OpMultiply,
-    OpDivide,
-    OpNot,
-    OpEqual,
-    OpGreater,
-    OpLess,
-    OpNegate,
-    OpReturn,
-    OpPrint,
-    OpPop,
+    Nil,
+    True,
+    False,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Not,
+    Equal,
+    Greater,
+    Less,
+    Negate,
+    Return,
+    Print,
+    Pop,
     Class(isize),
-    OpInvoke,
-    OpInherit,
+    Inherit,
     GetSuper(isize),
-    OpCloseUpvalue,
-    OpNop,
+    CloseUpvalue,
+    Nop,
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct Chunk {
@@ -105,14 +103,14 @@ mod tests {
     fn write_chunk_appends_code_and_line_and_increments_count() {
         let mut chunk = Chunk::new();
 
-        chunk.write_chunk(OpCode::OpAdd, 10);
-        chunk.write_chunk(OpCode::OpPop, 11);
+        chunk.write_chunk(OpCode::Add, 10);
+        chunk.write_chunk(OpCode::Pop, 11);
         chunk.write_chunk(OpCode::Constant(123), 12);
 
         assert_eq!(chunk.count, 3);
         assert_eq!(
             chunk.code,
-            vec![OpCode::OpAdd, OpCode::OpPop, OpCode::Constant(123)]
+            vec![OpCode::Add, OpCode::Pop, OpCode::Constant(123)]
         );
         assert_eq!(chunk.lines, vec![10, 11, 12]);
 

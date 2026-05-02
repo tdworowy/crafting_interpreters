@@ -254,9 +254,9 @@ impl Compiler {
         if self.function_type == FunctionType::TypeInitializer {
             self.emit_byte(OpCode::GetLocal(0));
         } else {
-            self.emit_byte(OpCode::OpNil);
+            self.emit_byte(OpCode::Nil);
         }
-        self.emit_byte(OpCode::OpReturn);
+        self.emit_byte(OpCode::Return);
     }
     fn error_et(&mut self, token: Token, message: String) {
         if self.panic_mode {
@@ -364,9 +364,9 @@ impl Compiler {
     }
     fn literal(&mut self, can_assign: bool) {
         match self.previous.token_type {
-            TokenType::TokenFalse => self.emit_byte(OpCode::OpFalse),
-            TokenType::TokenTrue => self.emit_byte(OpCode::OpTrue),
-            TokenType::TokenNil => self.emit_byte(OpCode::OpNil),
+            TokenType::TokenFalse => self.emit_byte(OpCode::False),
+            TokenType::TokenTrue => self.emit_byte(OpCode::True),
+            TokenType::TokenNil => self.emit_byte(OpCode::Nil),
             _ => {}
         }
     }
@@ -392,7 +392,7 @@ impl Compiler {
     }
     fn and(&mut self, can_assign: bool) {
         let end_jump = self.emit_jump(OpCode::JumpIfFalse);
-        self.emit_byte(OpCode::OpPop);
+        self.emit_byte(OpCode::Pop);
         self.parse_precedence(Precedence::PrecAnd);
         self.patch_jump(end_jump);
     }
@@ -400,7 +400,7 @@ impl Compiler {
         let else_jump = self.emit_jump(OpCode::JumpIfFalse);
         let end_jump = self.emit_jump(OpCode::Jump);
         self.patch_jump(else_jump);
-        self.emit_byte(OpCode::OpPop);
+        self.emit_byte(OpCode::Pop);
         self.parse_precedence(Precedence::PrecOr);
         self.patch_jump(end_jump);
     }
@@ -418,8 +418,8 @@ impl Compiler {
     fn unary(&mut self, can_assign: bool) {
         self.parse_precedence(Precedence::PrecUnary);
         match self.previous.token_type {
-            TokenType::TokenBang => self.emit_byte(OpCode::OpNot),
-            TokenType::TokenMinus => self.emit_byte(OpCode::OpNegate),
+            TokenType::TokenBang => self.emit_byte(OpCode::Not),
+            TokenType::TokenMinus => self.emit_byte(OpCode::Negate),
             _ => {}
         }
     }
@@ -586,16 +586,16 @@ impl Compiler {
         let parse_rule = get_rule(token_type.clone());
         self.parse_precedence(parse_rule.precedence.next());
         match token_type {
-            TokenType::TokenBangEqual => self.emit_bytes(OpCode::OpEqual, OpCode::OpNot),
-            TokenType::TokenEqualEqual => self.emit_byte(OpCode::OpEqual),
-            TokenType::TokenGreater => self.emit_byte(OpCode::OpGreater),
-            TokenType::TokenGreaterEqual => self.emit_bytes(OpCode::OpLess, OpCode::OpNot),
-            TokenType::TokenLess => self.emit_byte(OpCode::OpLess),
-            TokenType::TokenLessEqual => self.emit_bytes(OpCode::OpGreater, OpCode::OpNot),
-            TokenType::TokenPlus => self.emit_byte(OpCode::OpAdd),
-            TokenType::TokenMinus => self.emit_byte(OpCode::OpSubtract),
-            TokenType::TokenStar => self.emit_byte(OpCode::OpMultiply),
-            TokenType::TokenSlash => self.emit_byte(OpCode::OpDivide),
+            TokenType::TokenBangEqual => self.emit_bytes(OpCode::Equal, OpCode::Not),
+            TokenType::TokenEqualEqual => self.emit_byte(OpCode::Equal),
+            TokenType::TokenGreater => self.emit_byte(OpCode::Greater),
+            TokenType::TokenGreaterEqual => self.emit_bytes(OpCode::Less, OpCode::Not),
+            TokenType::TokenLess => self.emit_byte(OpCode::Less),
+            TokenType::TokenLessEqual => self.emit_bytes(OpCode::Greater, OpCode::Not),
+            TokenType::TokenPlus => self.emit_byte(OpCode::Add),
+            TokenType::TokenMinus => self.emit_byte(OpCode::Subtract),
+            TokenType::TokenStar => self.emit_byte(OpCode::Multiply),
+            TokenType::TokenSlash => self.emit_byte(OpCode::Divide),
             _ => {}
         }
     }
@@ -662,16 +662,16 @@ impl Compiler {
             }
 
             if local.is_captured {
-                self.emit_byte(OpCode::OpCloseUpvalue);
+                self.emit_byte(OpCode::CloseUpvalue);
             } else {
-                self.emit_byte(OpCode::OpPop);
+                self.emit_byte(OpCode::Pop);
             }
 
             self.locals.pop();
         }
     }
     fn end_compiler(&mut self) -> ObjFunction {
-        let ends_with_return = matches!(self.current_chunk().code.last(), Some(OpCode::OpReturn));
+        let ends_with_return = matches!(self.current_chunk().code.last(), Some(OpCode::Return));
         if !ends_with_return {
             self.emit_return();
         }
@@ -694,7 +694,7 @@ impl Compiler {
             TokenType::TokenSemicolon,
             "Expect ';' after expression.".to_owned(),
         );
-        self.emit_byte(OpCode::OpPop);
+        self.emit_byte(OpCode::Pop);
     }
     fn return_statement(&mut self) {
         if self.function_type == FunctionType::TypeScript {
@@ -711,7 +711,7 @@ impl Compiler {
                 TokenType::TokenSemicolon,
                 "Expect ';' after return value.".to_owned(),
             );
-            self.emit_byte(OpCode::OpReturn);
+            self.emit_byte(OpCode::Return);
         }
     }
     fn print_statement(&mut self) {
@@ -720,7 +720,7 @@ impl Compiler {
             TokenType::TokenSemicolon,
             "Expect ';' after value.".to_owned(),
         );
-        self.emit_byte(OpCode::OpPrint);
+        self.emit_byte(OpCode::Print);
     }
     fn if_statement(&mut self) {
         self.consume(TokenType::TokenLeftParen, "Expect '(' after if.".to_owned());
@@ -730,11 +730,11 @@ impl Compiler {
             "Expect ')' after condition.".to_owned(),
         );
         let then_jump = self.emit_jump(OpCode::JumpIfFalse);
-        self.emit_byte(OpCode::OpPop);
+        self.emit_byte(OpCode::Pop);
         self.statement();
         let else_jump = self.emit_jump(OpCode::Jump);
         self.patch_jump(then_jump);
-        self.emit_byte(OpCode::OpPop);
+        self.emit_byte(OpCode::Pop);
         if self.match_token(TokenType::TokenElse) {
             self.statement();
         }
@@ -762,13 +762,13 @@ impl Compiler {
             self.expression();
             self.consume(TokenType::TokenSemicolon, "Expect ';'.".to_owned());
             exit_jump = self.emit_jump(OpCode::JumpIfFalse) as isize;
-            self.emit_byte(OpCode::OpPop);
+            self.emit_byte(OpCode::Pop);
         }
         if !self.match_token(TokenType::TokenRightParen) {
             let body_jump = self.emit_jump(OpCode::Jump);
             let increment_start = self.current_chunk().count;
             self.expression();
-            self.emit_byte(OpCode::OpPop);
+            self.emit_byte(OpCode::Pop);
             self.consume(
                 TokenType::TokenRightParen,
                 "Expect ')' after for clauses.".to_owned(),
@@ -781,7 +781,7 @@ impl Compiler {
         self.emit_loop(loop_start as usize);
         if exit_jump != -1 {
             self.patch_jump(exit_jump);
-            self.emit_byte(OpCode::OpPop);
+            self.emit_byte(OpCode::Pop);
         }
         self.end_scope();
     }
@@ -797,11 +797,11 @@ impl Compiler {
             "Expect ')' after condition.".to_owned(),
         );
         let exit_jomp = self.emit_jump(OpCode::JumpIfFalse);
-        self.emit_byte(OpCode::OpPop);
+        self.emit_byte(OpCode::Pop);
         self.statement();
         self.emit_loop(loop_start as usize);
         self.patch_jump(exit_jomp);
-        self.emit_byte(OpCode::OpPop);
+        self.emit_byte(OpCode::Pop);
     }
     fn statement(&mut self) {
         if self.match_token(TokenType::TokenPrint) {
@@ -909,7 +909,7 @@ impl Compiler {
         if self.match_token(TokenType::TokenEqual) {
             self.expression();
         } else {
-            self.emit_byte(OpCode::OpNil);
+            self.emit_byte(OpCode::Nil);
         }
 
         self.consume(
@@ -956,7 +956,7 @@ impl Compiler {
             self.begin_scope();
             self.define_variable(0);
             self.named_variable(class_name.clone(), false);
-            self.emit_byte(OpCode::OpInherit);
+            self.emit_byte(OpCode::Inherit);
             let mut class_compiler_tmp = self.class_compiler.clone().unwrap();
             class_compiler_tmp.has_super_class = true;
             self.class_compiler = Some(class_compiler_tmp.clone());
@@ -973,7 +973,7 @@ impl Compiler {
             TokenType::TokenRightBrace,
             "Expect '}' after class body.".to_owned(),
         );
-        self.emit_byte(OpCode::OpPop);
+        self.emit_byte(OpCode::Pop);
         if self.class_compiler.clone().unwrap().has_super_class {
             self.end_scope();
         }
@@ -1024,10 +1024,10 @@ mod tests {
             code: vec![
                 OpCode::Constant(0),
                 OpCode::Constant(1),
-                OpCode::OpAdd,
-                OpCode::OpPop,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Add,
+                OpCode::Pop,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![1, 1, 1, 1, 1, 1],
             constants: vec![Value::Number(2f64), Value::Number(3f64)],
@@ -1048,10 +1048,10 @@ mod tests {
             code: vec![
                 OpCode::Constant(0),
                 OpCode::Constant(1),
-                OpCode::OpAdd,
+                OpCode::Add,
                 OpCode::DefineGlobal(2),
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![1, 1, 1, 1, 1, 1],
             constants: vec![Value::Number(2f64), Value::Number(3f64), value],
@@ -1071,9 +1071,9 @@ mod tests {
         let expected_chunk = Chunk {
             code: vec![
                 OpCode::Constant(0),
-                OpCode::OpPrint,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Print,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![1, 1, 1, 1],
             constants: vec![value],
@@ -1097,9 +1097,9 @@ mod tests {
                 OpCode::Constant(0),
                 OpCode::DefineGlobal(1),
                 OpCode::GetGlobal(1),
-                OpCode::OpPrint,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Print,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![1, 1, 1, 1, 1, 1],
             constants: vec![value1, value2],
@@ -1120,9 +1120,9 @@ mod tests {
             code: vec![
                 OpCode::Constant(0), // "2"
                 OpCode::GetLocal(1), // x
-                OpCode::OpAdd,
+                OpCode::Add,
                 OpCode::GetLocal(2), // y
-                OpCode::OpReturn,
+                OpCode::Return,
             ],
             lines: vec![2, 2, 2, 3, 3],
             constants: vec![Value::Number(2f64)],
@@ -1146,10 +1146,10 @@ mod tests {
                 OpCode::GetGlobal(1),
                 OpCode::Constant(2),
                 OpCode::Call(1),
-                OpCode::OpPrint,
+                OpCode::Print,
                 // implicit script return
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![4, 4, 5, 5, 5, 5, 5, 5],
             constants: vec![],
@@ -1187,14 +1187,14 @@ mod tests {
                 OpCode::Constant(2),
                 OpCode::GetLocal(1),
                 OpCode::GetGlobal(1),
-                OpCode::OpAdd,
+                OpCode::Add,
                 OpCode::SetLocal(1),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::GetLocal(1),
-                OpCode::OpPrint,
-                OpCode::OpPop,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Print,
+                OpCode::Pop,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![2, 2, 4, 5, 5, 5, 5, 5, 6, 6, 7, 8, 8],
             constants: vec![Value::Number(10f64), value, Value::Number(2f64)],
@@ -1226,9 +1226,9 @@ mod tests {
             code: vec![
                 OpCode::GetLocal(1),
                 OpCode::SetProperty(0),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::GetLocal(0),
-                OpCode::OpReturn,
+                OpCode::Return,
             ],
             lines: vec![3, 3, 3, 4, 4],
             constants: vec![value.clone()],
@@ -1245,10 +1245,10 @@ mod tests {
             code: vec![
                 OpCode::GetProperty(0),
                 OpCode::GetLocal(1),
-                OpCode::OpAdd,
-                OpCode::OpPrint,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Add,
+                OpCode::Print,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![6, 6, 6, 6, 7, 7],
             constants: vec![value],
@@ -1284,7 +1284,7 @@ mod tests {
                 OpCode::Method(1),
                 OpCode::Closure(4),
                 OpCode::Method(3),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::GetGlobal(0),
                 OpCode::Constant(5),
                 OpCode::Call(1),
@@ -1292,9 +1292,9 @@ mod tests {
                 OpCode::GetGlobal(6),
                 OpCode::Constant(7),
                 OpCode::Invoke(3, 1),
-                OpCode::OpPop,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Pop,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![1, 1, 1, 4, 4, 7, 7, 8, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10],
             constants: vec![
@@ -1334,23 +1334,23 @@ mod tests {
                 OpCode::Constant(0),
                 OpCode::GetLocal(1),
                 OpCode::Constant(1),
-                OpCode::OpLess,
+                OpCode::Less,
                 OpCode::JumpIfFalse(11),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::Jump(6),
                 OpCode::GetLocal(1),
                 OpCode::Constant(2),
-                OpCode::OpAdd,
+                OpCode::Add,
                 OpCode::SetLocal(1),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::Loop(12),
                 OpCode::GetLocal(1),
-                OpCode::OpPrint,
+                OpCode::Print,
                 OpCode::Loop(9),
-                OpCode::OpPop,
-                OpCode::OpPop,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Pop,
+                OpCode::Pop,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3, 3, 3, 3, 3],
             constants: vec![
@@ -1382,20 +1382,20 @@ mod tests {
                 OpCode::DefineGlobal(1),
                 OpCode::GetGlobal(1),
                 OpCode::Constant(2),
-                OpCode::OpLess,
+                OpCode::Less,
                 OpCode::JumpIfFalse(9),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::GetGlobal(1),
-                OpCode::OpPrint,
+                OpCode::Print,
                 OpCode::GetGlobal(1),
                 OpCode::Constant(3),
-                OpCode::OpAdd,
+                OpCode::Add,
                 OpCode::SetGlobal(1),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::Loop(13),
-                OpCode::OpPop,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Pop,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![1, 1, 2, 2, 2, 2, 2, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5],
             constants: vec![
@@ -1427,21 +1427,21 @@ mod tests {
                 OpCode::Constant(0),
                 OpCode::GetLocal(1),
                 OpCode::Constant(1),
-                OpCode::OpLess,
+                OpCode::Less,
                 OpCode::JumpIfFalse(9),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::GetLocal(1),
-                OpCode::OpPrint,
+                OpCode::Print,
                 OpCode::GetLocal(1),
                 OpCode::Constant(2),
-                OpCode::OpAdd,
+                OpCode::Add,
                 OpCode::SetLocal(1),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::Loop(13),
-                OpCode::OpPop,
-                OpCode::OpPop,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Pop,
+                OpCode::Pop,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![2, 3, 3, 3, 3, 3, 4, 4, 5, 5, 5, 5, 5, 6, 6, 7, 7, 7],
             constants: vec![
@@ -1487,17 +1487,17 @@ mod tests {
                 OpCode::DefineGlobal(3),
                 OpCode::GetGlobal(1),
                 OpCode::GetGlobal(3),
-                OpCode::OpLess,
+                OpCode::Less,
                 OpCode::JumpIfFalse(4),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::Constant(4),
-                OpCode::OpPrint,
+                OpCode::Print,
                 OpCode::Jump(3),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::Constant(5),
-                OpCode::OpPrint,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Print,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![1, 1, 2, 2, 3, 3, 3, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7],
             constants: vec![
@@ -1533,8 +1533,8 @@ mod tests {
             code: vec![
                 OpCode::GetUpvalue(0),
                 OpCode::Constant(0),
-                OpCode::OpAdd,
-                OpCode::OpReturn,
+                OpCode::Add,
+                OpCode::Return,
             ],
             lines: vec![4, 4, 4, 4],
             constants: vec![Value::Number(2f64)],
@@ -1552,12 +1552,12 @@ mod tests {
             code: vec![
                 OpCode::GetLocal(1),
                 OpCode::Constant(0),
-                OpCode::OpAdd,
+                OpCode::Add,
                 OpCode::Closure(1),
                 OpCode::Constant(1),
                 OpCode::Constant(2),
                 OpCode::GetLocal(3),
-                OpCode::OpReturn,
+                OpCode::Return,
             ],
             lines: vec![2, 2, 2, 5, 5, 5, 6, 6],
             constants: vec![Value::Number(1f64), value_expected_fun2],
@@ -1588,9 +1588,9 @@ mod tests {
                 OpCode::DefineGlobal(3),
                 OpCode::GetGlobal(3),
                 OpCode::Call(0),
-                OpCode::OpPrint,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Print,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 9],
             constants: vec![
@@ -1625,11 +1625,11 @@ mod tests {
             code: vec![
                 OpCode::GetUpvalue(0),
                 OpCode::GetUpvalue(1),
-                OpCode::OpAdd,
+                OpCode::Add,
                 OpCode::GetLocal(1),
                 OpCode::GetUpvalue(2),
-                OpCode::OpAdd,
-                OpCode::OpReturn,
+                OpCode::Add,
+                OpCode::Return,
             ],
             lines: vec![5, 5, 5, 6, 6, 6, 6],
             constants: vec![],
@@ -1648,7 +1648,7 @@ mod tests {
             code: vec![
                 OpCode::GetLocal(1),
                 OpCode::Constant(0),
-                OpCode::OpAdd,
+                OpCode::Add,
                 OpCode::Constant(1),
                 OpCode::Closure(2),
                 OpCode::Constant(1),
@@ -1658,7 +1658,7 @@ mod tests {
                 OpCode::Constant(1),
                 OpCode::Constant(1),
                 OpCode::GetLocal(4),
-                OpCode::OpReturn,
+                OpCode::Return,
             ],
             lines: vec![2, 2, 2, 3, 7, 7, 7, 7, 7, 7, 7, 8, 8],
             constants: vec![
@@ -1693,9 +1693,9 @@ mod tests {
                 OpCode::DefineGlobal(3),
                 OpCode::GetGlobal(3),
                 OpCode::Call(0),
-                OpCode::OpPrint,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Print,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![9, 9, 10, 10, 10, 10, 11, 11, 11, 11, 11],
             constants: vec![
@@ -1732,8 +1732,8 @@ mod tests {
             code: vec![
                 OpCode::Constant(0),
                 OpCode::Constant(1),
-                OpCode::OpAdd,
-                OpCode::OpReturn,
+                OpCode::Add,
+                OpCode::Return,
             ],
             lines: vec![3, 3, 3, 3],
             constants: vec![Value::Number(2f64), Value::Number(2f64)],
@@ -1749,7 +1749,7 @@ mod tests {
 
         let expected_inner_fun1_chunk = Chunk {
             count: 3,
-            code: vec![OpCode::Closure(0), OpCode::GetLocal(1), OpCode::OpReturn],
+            code: vec![OpCode::Closure(0), OpCode::GetLocal(1), OpCode::Return],
             lines: vec![4, 5, 5],
             constants: vec![value_expected_fun2],
         };
@@ -1778,9 +1778,9 @@ mod tests {
                 OpCode::DefineGlobal(2),
                 OpCode::GetGlobal(2),
                 OpCode::Call(0),
-                OpCode::OpPrint,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Print,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![6, 6, 7, 7, 7, 8, 8, 8, 8, 8],
             constants: vec![value_expected_fun1, value_string_fun1, value_string_c],
@@ -1813,8 +1813,8 @@ mod tests {
             code: vec![
                 OpCode::GetGlobal(0),
                 OpCode::Constant(1),
-                OpCode::OpAdd,
-                OpCode::OpReturn,
+                OpCode::Add,
+                OpCode::Return,
             ],
             lines: vec![5, 5, 5, 5],
             constants: vec![value_string_x, Value::Number(5f64)],
@@ -1830,7 +1830,7 @@ mod tests {
         // middle: fun fun2() { fun fun3() { ... } return fun3 }
         let expected_fun2_chunk = Chunk {
             count: 3,
-            code: vec![OpCode::Closure(0), OpCode::GetLocal(1), OpCode::OpReturn],
+            code: vec![OpCode::Closure(0), OpCode::GetLocal(1), OpCode::Return],
             lines: vec![6, 7, 7],
             constants: vec![value_expected_fun3],
         };
@@ -1850,13 +1850,13 @@ mod tests {
             count: 8,
             code: vec![
                 OpCode::GetGlobal(0),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::Constant(2),
                 OpCode::SetGlobal(1),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::Closure(3),
                 OpCode::GetLocal(1),
-                OpCode::OpReturn,
+                OpCode::Return,
             ],
             lines: vec![2, 2, 2, 2, 2, 8, 9, 9],
             constants: vec![value_string_x, Value::Number(10f64), value_expected_fun2],
@@ -1886,9 +1886,9 @@ mod tests {
                 OpCode::GetGlobal(2),
                 OpCode::Call(0),
                 OpCode::Call(0),
-                OpCode::OpPrint,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Print,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![10, 10, 11, 11, 11, 12, 12, 12, 12, 12, 12],
             constants: vec![value_expected_fun1, value_string_fun1, value_string_c],
@@ -1922,21 +1922,21 @@ mod tests {
             code: vec![
                 OpCode::GetLocal(1),
                 OpCode::Constant(0),
-                OpCode::OpGreater,
+                OpCode::Greater,
                 OpCode::JumpIfFalse(10),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::GetGlobal(1),
                 OpCode::GetLocal(1),
                 OpCode::Constant(2),
-                OpCode::OpSubtract,
+                OpCode::Subtract,
                 OpCode::Call(1),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::Constant(3),
-                OpCode::OpPrint,
+                OpCode::Print,
                 OpCode::Jump(1),
-                OpCode::OpPop,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Pop,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 5, 5, 6, 6],
             constants: vec![
@@ -1967,9 +1967,9 @@ mod tests {
                 OpCode::GetGlobal(1),
                 OpCode::Constant(2),
                 OpCode::Call(1),
-                OpCode::OpPop,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Pop,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![6, 6, 7, 7, 7, 7, 7, 7],
             constants: vec![
@@ -1998,14 +1998,14 @@ mod tests {
     fn test_short_circuit_or_compiles_correct_jumps() {
         let expected_chunk = Chunk {
             code: vec![
-                OpCode::OpTrue,
+                OpCode::True,
                 OpCode::JumpIfFalse(1),
                 OpCode::Jump(2),
-                OpCode::OpPop,
-                OpCode::OpFalse,
-                OpCode::OpPop,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Pop,
+                OpCode::False,
+                OpCode::Pop,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![1, 1, 1, 1, 1, 1, 1, 1],
             constants: vec![],
@@ -2024,13 +2024,13 @@ mod tests {
     fn test_short_circuit_and_compiles_correct_jumps() {
         let expected_chunk = Chunk {
             code: vec![
-                OpCode::OpFalse,
+                OpCode::False,
                 OpCode::JumpIfFalse(2),
-                OpCode::OpPop,
-                OpCode::OpTrue,
-                OpCode::OpPop,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Pop,
+                OpCode::True,
+                OpCode::Pop,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![1, 1, 1, 1, 1, 1, 1],
             constants: vec![],
@@ -2055,9 +2055,9 @@ mod tests {
             count: 4,
             code: vec![
                 OpCode::Constant(0),
-                OpCode::OpPrint,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Print,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![3, 3, 4, 4],
             constants: vec![value_string_inheritance],
@@ -2077,9 +2077,9 @@ mod tests {
             count: 4,
             code: vec![
                 OpCode::Invoke(0, 0),
-                OpCode::OpPop,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Pop,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![8, 8, 9, 9],
             constants: vec![value_string_do_staff],
@@ -2121,25 +2121,25 @@ mod tests {
                 OpCode::GetGlobal(0),
                 OpCode::Closure(2),
                 OpCode::Method(1),
-                OpCode::OpPop,
+                OpCode::Pop,
                 OpCode::Class(3),
                 OpCode::DefineGlobal(3),
                 OpCode::GetGlobal(0),
                 OpCode::GetGlobal(3),
-                OpCode::OpInherit,
+                OpCode::Inherit,
                 OpCode::GetGlobal(3),
                 OpCode::Closure(4),
                 OpCode::Method(1),
-                OpCode::OpPop,
-                OpCode::OpPop,
+                OpCode::Pop,
+                OpCode::Pop,
                 OpCode::GetGlobal(3),
                 OpCode::Call(0),
                 OpCode::DefineGlobal(5),
                 OpCode::GetGlobal(5),
                 OpCode::Invoke(1, 0),
-                OpCode::OpPop,
-                OpCode::OpNil,
-                OpCode::OpReturn,
+                OpCode::Pop,
+                OpCode::Nil,
+                OpCode::Return,
             ],
             lines: vec![
                 1, 1, 1, 4, 4, 5, 6, 6, 6, 6, 6, 6, 9, 9, 10, 10, 11, 11, 11, 12, 12, 12, 12, 12,

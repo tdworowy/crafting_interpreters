@@ -1,5 +1,6 @@
 use crate::chunks::Chunk;
 use crate::value::Value;
+use std::cell::RefCell;
 use std::{collections::HashMap, rc::Rc};
 
 pub type NativeFn = fn(arg_count: usize, args: &[Value]) -> Value;
@@ -59,7 +60,7 @@ impl ObjFunction {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjClosure {
     pub function: Rc<ObjFunction>,
-    pub upvalues: Vec<Rc<ObjUpvalue>>,
+    pub upvalues: Vec<Rc<RefCell<ObjUpvalue>>>,
 }
 
 impl ObjClosure {
