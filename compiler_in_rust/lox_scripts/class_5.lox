@@ -1,0 +1,12 @@
+class superClass {
+        doStaff() {
+           print "Inheritance works";
+    }
+}
+class subClass < superClass {
+    doStaff() {
+       super.doStaff();
+    }
+}
+var obj = subClass();
+obj.doStaff();

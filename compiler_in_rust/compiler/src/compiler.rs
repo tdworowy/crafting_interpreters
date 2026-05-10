@@ -118,7 +118,7 @@ struct Upvalue {
 }
 
 #[derive(PartialEq, Clone, Copy)]
-enum FunctionType {
+pub(crate) enum FunctionType {
     TypeFunction,
     TypeScript,
     TypeMethod,
@@ -126,7 +126,7 @@ enum FunctionType {
 }
 
 #[derive(Clone)]
-struct Compiler {
+pub(crate) struct Compiler {
     enclosing: Option<Box<Compiler>>,
     class_compiler: Option<Box<ClassCompiler>>,
     function: Box<ObjFunction>,
@@ -166,7 +166,7 @@ impl Precedence {
 }
 
 impl Compiler {
-    fn new(enclosing: Option<Box<Compiler>>, function_type: FunctionType) -> Self {
+    pub(crate) fn new(enclosing: Option<Box<Compiler>>, function_type: FunctionType) -> Self {
         let mut function = ObjFunction::new();
         if function_type != FunctionType::TypeScript {
             if let Some(ref parent) = enclosing {
@@ -1002,7 +1002,7 @@ impl Compiler {
             "Expect '}' after block.".to_owned(),
         );
     }
-    fn compile(&mut self, source: String) -> ObjFunction {
+    pub(crate) fn compile(&mut self, source: String) -> ObjFunction {
         let scanner = Scanner::new(source);
         self.scanner = Some(scanner);
         self.advance();

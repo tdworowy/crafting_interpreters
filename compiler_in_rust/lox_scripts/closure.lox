@@ -1,0 +1,9 @@
+fun fun1(x) {
+    var y = x + 1;
+    fun fun2() {
+        return y + 2;
+    }
+    return fun2;
+}
+var c = fun1(10);
+print c();

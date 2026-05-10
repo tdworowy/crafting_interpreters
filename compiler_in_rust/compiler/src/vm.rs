@@ -73,7 +73,7 @@ impl VM {
         self.stack.pop().expect("Can't pop value from stack")
     }
     fn peek(&mut self, distance: i64) -> Value {
-        self.stack[self.stack_top - distance as usize].to_owned()
+        self.stack[self.stack_top - 1 - distance as usize].to_owned()
     }
     fn reset_stack(&mut self) {
         self.stack_top = 0;
@@ -103,7 +103,7 @@ impl VM {
     fn runtime_error_fmt(&mut self, fmt: &str, args: std::fmt::Arguments<'_>) {
         self.runtime_error(format!("{fmt}{args}"));
     }
-    pub fn define_native(&mut self, name: &str, function: NativeFn) {
+    fn define_native(&mut self, name: &str, function: NativeFn) {
         let name_obj = obj_val(Obj::String(ObjString::copy_from_str(name)));
         let native_obj = obj_val(Obj::Native(ObjNative::new(function)));
 
@@ -295,7 +295,7 @@ impl VM {
         self.pop();
         self.push(Value::Obj(Rc::new(RefCell::new(Obj::String(result_obj)))));
     }
-    pub fn run(&mut self) -> InterpretResult {
+    fn run(&mut self) -> InterpretResult {
         loop {
             let frame_index = self.call_frames.len() - 1;
 
@@ -660,13 +660,239 @@ impl VM {
 
                     self.push(Value::Obj(Rc::new(RefCell::new(Obj::Class(class)))));
                 }
+                OpCode::Method(index) => {
+                    let name = {
+                        let frame = &self.call_frames[frame_index];
 
+                        frame.closure.borrow().function.chunk.constants[index as usize].as_string()
+                    };
+                    self.define_method(name.data.to_owned());
+                }
+                OpCode::SetProperty(index) => {
+                    let name = {
+                        let frame = &self.call_frames[frame_index];
+
+                        frame.closure.borrow().function.chunk.constants[index as usize].as_string()
+                    };
+
+                    let receiver = self.peek(1).clone();
+
+                    match receiver {
+                        Value::Obj(obj) => {
+                            let mut obj_ref = obj.borrow_mut();
+
+                            match &mut *obj_ref {
+                                Obj::Instance(instance) => {
+                                    let value = self.peek(0).clone();
+
+                                    instance.fields.insert(name.data.clone(), value.clone());
+                                    let value = self.pop();
+                                    self.pop();
+                                    self.push(value);
+                                }
+
+                                _ => {
+                                    self.runtime_error("Only instances have fields.".to_string());
+
+                                    return InterpretResult::InterpretRuntimeError;
+                                }
+                            }
+                        }
+
+                        _ => {
+                            self.runtime_error("Only instances have fields.".to_string());
+
+                            return InterpretResult::InterpretRuntimeError;
+                        }
+                    }
+                }
+                OpCode::GetProperty(index) => {
+                    let name = {
+                        let frame = &self.call_frames[frame_index];
+
+                        frame.closure.borrow().function.chunk.constants[index as usize].as_string()
+                    };
+
+                    let receiver = self.peek(0).clone();
+
+                    match receiver {
+                        Value::Obj(obj) => {
+                            let obj_ref = obj.borrow();
+
+                            match &*obj_ref {
+                                Obj::Instance(instance) => match instance.fields.get(&name.data) {
+                                    Some(value) => {
+                                        let value = value.clone();
+
+                                        self.pop();
+                                        self.push(value);
+                                    }
+
+                                    None => {
+                                        self.runtime_error(format!(
+                                            "Undefined property '{}'.",
+                                            name.data
+                                        ));
+
+                                        return InterpretResult::InterpretRuntimeError;
+                                    }
+                                },
+
+                                _ => {
+                                    self.runtime_error(
+                                        "Only instances have properties.".to_string(),
+                                    );
+
+                                    return InterpretResult::InterpretRuntimeError;
+                                }
+                            }
+                        }
+
+                        _ => {
+                            self.runtime_error("Only instances have properties.".to_string());
+
+                            return InterpretResult::InterpretRuntimeError;
+                        }
+                    }
+                }
+                OpCode::Invoke(index, arg_count) => {
+                    let name = {
+                        let frame = &self.call_frames[frame_index];
+
+                        frame.closure.borrow().function.chunk.constants[index as usize].as_string()
+                    };
+                    let receiver = self.peek(arg_count as i64).clone();
+
+                    match receiver {
+                        Value::Obj(obj) => {
+                            let obj_ref = obj.borrow();
+
+                            match &*obj_ref {
+                                Obj::Instance(instance) => {
+                                    if let Some(value) = instance.fields.get(&name.data) {
+                                        let value = value.clone();
+
+                                        let slot = self.stack.len() - 1 - arg_count as usize;
+                                        self.stack[slot] = value.clone();
+
+                                        if !self.call_value(value, arg_count as usize) {
+                                            return InterpretResult::InterpretRuntimeError;
+                                        }
+
+                                        continue;
+                                    }
+
+                                    let class = instance.klass.clone();
+
+                                    drop(obj_ref);
+
+                                    if !self.invoke_from_class(
+                                        class,
+                                        name.data.clone(),
+                                        arg_count as usize,
+                                    ) {
+                                        return InterpretResult::InterpretRuntimeError;
+                                    }
+                                }
+
+                                _ => {
+                                    self.runtime_error("Only instances have methods.".to_string());
+
+                                    return InterpretResult::InterpretRuntimeError;
+                                }
+                            }
+                        }
+
+                        _ => {
+                            self.runtime_error("Only instances have methods.".to_string());
+
+                            return InterpretResult::InterpretRuntimeError;
+                        }
+                    }
+                }
+                OpCode::Inherit => {
+                    let superclass = self.peek(1).clone();
+
+                    match superclass {
+                        Value::Obj(super_obj) => {
+                            let super_ref = super_obj.borrow();
+
+                            match &*super_ref {
+                                Obj::Class(superclass) => {
+                                    let subclass_value = self.peek(0).clone();
+
+                                    match subclass_value {
+                                        Value::Obj(sub_obj) => {
+                                            let mut sub_ref = sub_obj.borrow_mut();
+
+                                            match &mut *sub_ref {
+                                                Obj::Class(subclass) => {
+                                                    for (name, method) in &superclass.methods {
+                                                        subclass
+                                                            .methods
+                                                            .insert(name.clone(), method.clone());
+                                                    }
+                                                    self.pop();
+                                                }
+
+                                                _ => {
+                                                    self.runtime_error(
+                                                        "Subclass must be a class.".to_string(),
+                                                    );
+
+                                                    return InterpretResult::InterpretRuntimeError;
+                                                }
+                                            }
+                                        }
+
+                                        _ => {
+                                            self.runtime_error(
+                                                "Subclass must be a class.".to_string(),
+                                            );
+
+                                            return InterpretResult::InterpretRuntimeError;
+                                        }
+                                    }
+                                }
+
+                                _ => {
+                                    self.runtime_error("Superclass must be a class.".to_string());
+
+                                    return InterpretResult::InterpretRuntimeError;
+                                }
+                            }
+                        }
+
+                        _ => {
+                            self.runtime_error("Superclass must be a class.".to_string());
+
+                            return InterpretResult::InterpretRuntimeError;
+                        }
+                    }
+                }
                 OpCode::Nop => {}
 
                 _ => {
+                    println!("Unhandled opcode: {:?}", instruction);
                     todo!("Opcode not implemented");
                 }
             }
         }
+    }
+    pub fn interpret(&mut self, source: String) -> InterpretResult {
+        let mut compiler =
+            crate::compiler::Compiler::new(None, crate::compiler::FunctionType::TypeScript);
+        let function = compiler.compile(source);
+        self.push(Value::Obj(Rc::new(RefCell::new(Obj::Function(
+            function.clone(),
+        )))));
+        let closure = ObjClosure::new(Rc::new(function));
+        self.pop();
+        self.push(Value::Obj(Rc::new(RefCell::new(Obj::Closure(
+            closure.clone(),
+        )))));
+
+        self.call(Rc::new(RefCell::new(closure)), 0);
+        self.run()
     }
 }
