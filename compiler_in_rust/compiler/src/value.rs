@@ -76,7 +76,7 @@ impl Value {
     pub fn as_class(&self) -> Rc<RefCell<ObjClass>> {
         let obj = self.as_obj();
         match &*obj.borrow() {
-            Obj::Class(klass) => Rc::new(RefCell::from(klass.clone())),
+            Obj::Class(klass) => klass.clone(),
             _ => panic!("Value is not a klass"),
         }
     }
@@ -98,17 +98,17 @@ impl Value {
 
     pub fn print(&self) {
         match self {
-            Value::Bool(b) => print!("{}", if *b { "true" } else { "false" }),
-            Value::Nil => print!("nil"),
-            Value::Number(n) => print!("{n}"),
+            Value::Bool(b) => println!("{}", if *b { "true" } else { "false" }),
+            Value::Nil => println!("nil"),
+            Value::Number(n) => println!("{n}"),
             Value::Obj(obj) => {
                 let obj = obj.borrow();
                 match &*obj {
-                    Obj::String(s) => print!("{}", &s.data),
-                    Obj::Closure(_) => print!("<closure>"),
-                    Obj::Native(_) => print!("<native fn>"),
-                    Obj::Class(_) => print!("<class>"),
-                    Obj::BoundMethod(_) => print!("<bound method>"),
+                    Obj::String(s) => println!("{}", &s.data),
+                    Obj::Closure(_) => println!("<closure>"),
+                    Obj::Native(_) => println!("<native fn>"),
+                    Obj::Class(klass) => println!("<class>{:?}<class>", klass.borrow().name),
+                    Obj::BoundMethod(_) => println!("<bound method>"),
                     _ => {}
                 }
             }

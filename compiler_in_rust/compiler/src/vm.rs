@@ -158,16 +158,17 @@ impl VM {
 
         match &*obj {
             Obj::Class(klass) => {
-                // Create instance
-                let instance = Obj::Instance(ObjInstance::new(Rc::new(klass.clone())));
+                let instance = Obj::Instance(ObjInstance::new(klass.clone()));
+
                 let instance_val = obj_val(instance);
 
-                // Replace callee slot with instance
                 let slot = self.stack_top - arg_count - 1;
                 self.stack[slot] = instance_val.clone();
 
-                // Call initializer if exists
-                if let Some(init) = klass.methods.get("init") {
+                let klass_borrow = klass.borrow();
+
+                if let Some(init) = klass_borrow.methods.get("init") {
+                    //drop(obj); // safe before recursive call
                     self.call_value(init.clone(), arg_count)
                 } else {
                     if arg_count != 0 {
@@ -183,7 +184,7 @@ impl VM {
             Obj::Native(native) => {
                 let args_start = self.stack_top - arg_count;
                 let result = (native.function)(arg_count, &self.stack[args_start..self.stack_top]);
-                // Pop args + callee, push result
+
                 self.stack_top -= arg_count + 1;
                 self.push(result);
 
@@ -191,13 +192,11 @@ impl VM {
             }
 
             Obj::BoundMethod(bound) => {
-                // Replace callee with receiver
                 let slot = self.stack_top - arg_count - 1;
                 self.stack[slot] = bound.receiver.clone();
 
-                let method = Value::Obj(Rc::new(std::cell::RefCell::new(Obj::Closure(
-                    (*bound.method).clone(),
-                ))));
+                let method =
+                    Value::Obj(Rc::new(RefCell::new(Obj::Closure((*bound.method).clone()))));
 
                 drop(obj);
                 self.call_value(method, arg_count)
@@ -209,8 +208,13 @@ impl VM {
             }
         }
     }
-    fn invoke_from_class(&mut self, klass: Rc<ObjClass>, name: String, arg_count: usize) -> bool {
-        let method = match klass.methods.get(&name) {
+    fn invoke_from_class(
+        &mut self,
+        klass: Rc<RefCell<ObjClass>>,
+        name: String,
+        arg_count: usize,
+    ) -> bool {
+        let method = match klass.borrow().methods.get(&name) {
             Some(method) => method.clone(),
             None => {
                 self.runtime_error(format!("Undefined property {}", name));
@@ -219,8 +223,8 @@ impl VM {
         };
         self.call_value(method, arg_count)
     }
-    fn bind_method(&mut self, klass: Rc<ObjClass>, name: String) -> bool {
-        let method = match klass.methods.get(&name) {
+    fn bind_method(&mut self, klass: Rc<RefCell<ObjClass>>, name: String) -> bool {
+        let method = match klass.borrow().methods.get(&name) {
             Some(method) => method.clone(),
             None => {
                 self.runtime_error(format!("Undefined property {}", name));
@@ -575,9 +579,7 @@ impl VM {
                     self.push(Value::Number(-value));
                 }
 
-                OpCode::Print => {
-                    println!("{:?}", self.pop());
-                }
+                OpCode::Print => self.pop().print(),
 
                 OpCode::Jump(offset) => {
                     let frame = &mut self.call_frames[frame_index];
@@ -631,7 +633,6 @@ impl VM {
 
                 OpCode::Return => {
                     let result = self.pop();
-
                     let frame = self.call_frames.pop().unwrap();
 
                     self.close_upvalues(frame.slot_start);
@@ -642,8 +643,7 @@ impl VM {
                         return InterpretResult::InterpretOk;
                     }
 
-                    self.stack.truncate(frame.slot_start);
-
+                    //self.stack.truncate(frame.slot_start);
                     self.push(result);
                 }
 
@@ -658,7 +658,9 @@ impl VM {
                         methods: HashMap::new(),
                     };
 
-                    self.push(Value::Obj(Rc::new(RefCell::new(Obj::Class(class)))));
+                    self.push(Value::Obj(Rc::new(RefCell::new(Obj::Class(Rc::new(
+                        RefCell::new(class),
+                    ))))));
                 }
                 OpCode::Method(index) => {
                     let name = {
@@ -712,31 +714,47 @@ impl VM {
 
                         frame.closure.borrow().function.chunk.constants[index as usize].as_string()
                     };
-
                     let receiver = self.peek(0).clone();
 
-                    match receiver {
+                    match &receiver {
                         Value::Obj(obj) => {
                             let obj_ref = obj.borrow();
 
                             match &*obj_ref {
-                                Obj::Instance(instance) => match instance.fields.get(&name.data) {
-                                    Some(value) => {
+                                Obj::Instance(instance) => {
+                                    // Fields first.
+                                    if let Some(value) = instance.fields.get(&name.data) {
                                         let value = value.clone();
 
                                         self.pop();
                                         self.push(value);
-                                    }
+                                    } else {
+                                        // Then methods.
+                                        let method =
+                                            match instance.klass.borrow().methods.get(&name.data) {
+                                                Some(method) => method.clone(),
+                                                None => {
+                                                    self.runtime_error(format!(
+                                                        "Undefined property '{}'.",
+                                                        name.data
+                                                    ));
 
-                                    None => {
-                                        self.runtime_error(format!(
-                                            "Undefined property '{}'.",
-                                            name.data
-                                        ));
+                                                    return InterpretResult::InterpretRuntimeError;
+                                                }
+                                            };
 
-                                        return InterpretResult::InterpretRuntimeError;
+                                        let bound_method = ObjBoundMethod {
+                                            receiver: receiver.clone(),
+                                            method: method.as_closure(),
+                                        };
+
+                                        self.pop();
+
+                                        self.push(Value::Obj(Rc::new(RefCell::new(
+                                            Obj::BoundMethod(bound_method),
+                                        ))));
                                     }
-                                },
+                                }
 
                                 _ => {
                                     self.runtime_error(
@@ -782,12 +800,8 @@ impl VM {
                                         continue;
                                     }
 
-                                    let class = instance.klass.clone();
-
-                                    drop(obj_ref);
-
                                     if !self.invoke_from_class(
-                                        class,
+                                        instance.klass.clone(),
                                         name.data.clone(),
                                         arg_count as usize,
                                     ) {
@@ -827,8 +841,11 @@ impl VM {
 
                                             match &mut *sub_ref {
                                                 Obj::Class(subclass) => {
-                                                    for (name, method) in &superclass.methods {
+                                                    for (name, method) in
+                                                        &superclass.borrow().methods
+                                                    {
                                                         subclass
+                                                            .borrow_mut()
                                                             .methods
                                                             .insert(name.clone(), method.clone());
                                                     }

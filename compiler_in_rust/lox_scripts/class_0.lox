@@ -9,4 +9,5 @@ var testObject = TestClass();
 testObject.test = "test";
 print testObject;
 print testObject.test;
+testObject.doStaff();
 print testObject.doStaff();
