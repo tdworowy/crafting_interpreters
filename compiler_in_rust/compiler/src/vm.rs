@@ -643,7 +643,6 @@ impl VM {
                         return InterpretResult::InterpretOk;
                     }
 
-                    //self.stack.truncate(frame.slot_start);
                     self.push(result);
                 }
 
@@ -826,67 +825,46 @@ impl VM {
                 }
                 OpCode::Inherit => {
                     let superclass = self.peek(1).clone();
+                    let subclass = self.peek(0).clone();
 
-                    match superclass {
-                        Value::Obj(super_obj) => {
-                            let super_ref = super_obj.borrow();
-
-                            match &*super_ref {
-                                Obj::Class(superclass) => {
-                                    let subclass_value = self.peek(0).clone();
-
-                                    match subclass_value {
-                                        Value::Obj(sub_obj) => {
-                                            let mut sub_ref = sub_obj.borrow_mut();
-
-                                            match &mut *sub_ref {
-                                                Obj::Class(subclass) => {
-                                                    for (name, method) in
-                                                        &superclass.borrow().methods
-                                                    {
-                                                        subclass
-                                                            .borrow_mut()
-                                                            .methods
-                                                            .insert(name.clone(), method.clone());
-                                                    }
-                                                    self.pop();
-                                                }
-
-                                                _ => {
-                                                    self.runtime_error(
-                                                        "Subclass must be a class.".to_string(),
-                                                    );
-
-                                                    return InterpretResult::InterpretRuntimeError;
-                                                }
-                                            }
-                                        }
-
-                                        _ => {
-                                            self.runtime_error(
-                                                "Subclass must be a class.".to_string(),
-                                            );
-
-                                            return InterpretResult::InterpretRuntimeError;
-                                        }
-                                    }
-                                }
-
-                                _ => {
-                                    self.runtime_error("Superclass must be a class.".to_string());
-
-                                    return InterpretResult::InterpretRuntimeError;
-                                }
+                    let super_class = match superclass {
+                        Value::Obj(obj) => match &*obj.borrow() {
+                            Obj::Class(c) => c.clone(),
+                            _ => {
+                                self.runtime_error("Superclass must be a class.".to_string());
+                                return InterpretResult::InterpretRuntimeError;
                             }
-                        }
-
+                        },
                         _ => {
                             self.runtime_error("Superclass must be a class.".to_string());
-
                             return InterpretResult::InterpretRuntimeError;
                         }
+                    };
+
+                    let sub_obj = match subclass {
+                        Value::Obj(obj) => obj,
+                        _ => {
+                            self.runtime_error("Subclass must be a class.".to_string());
+                            return InterpretResult::InterpretRuntimeError;
+                        }
+                    };
+                    let mut tmp_obj = sub_obj.borrow_mut();
+                    let mut sub_class = match &mut *tmp_obj {
+                        Obj::Class(c) => c.borrow_mut(),
+                        _ => {
+                            self.runtime_error("Subclass must be a class.".to_string());
+                            return InterpretResult::InterpretRuntimeError;
+                        }
+                    };
+
+                    for (name, method) in &super_class.borrow().methods {
+                        sub_class.methods.insert(name.clone(), method.clone());
                     }
+
+                    self.pop(); // subclass
+                    self.pop(); // superclass
                 }
+
                 OpCode::Nop => {}
 
                 _ => {
@@ -913,3 +891,5 @@ impl VM {
         self.run()
     }
 }
+
+// TODO handle GetSupper and SuperInvoke
