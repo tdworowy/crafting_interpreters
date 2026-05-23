@@ -104,20 +104,20 @@ fn get_rule(token_type: TokenType) -> ParseRule {
         precedence: Precedence::PrecNone,
     })
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Local {
     name: Token,
     depth: isize,
     is_captured: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Upvalue {
     index: isize,
     is_local: bool,
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub(crate) enum FunctionType {
     TypeFunction,
     TypeScript,
@@ -125,7 +125,7 @@ pub(crate) enum FunctionType {
     TypeInitializer,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct Compiler {
     enclosing: Option<Box<Compiler>>,
     class_compiler: Option<Box<ClassCompiler>>,
@@ -141,7 +141,7 @@ pub(crate) struct Compiler {
     panic_mode: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct ClassCompiler {
     enclosing: Option<Box<ClassCompiler>>,
     has_super_class: bool,
@@ -175,7 +175,7 @@ impl Compiler {
         }
 
         let mut compiler = Compiler {
-            enclosing,
+            enclosing: enclosing.clone(),
             function_type,
             locals: Vec::new(),
             upvalues: Vec::new(),
@@ -194,7 +194,7 @@ impl Compiler {
             },
             had_error: false,
             panic_mode: false,
-            class_compiler: None,
+            class_compiler: enclosing.as_ref().and_then(|p| p.class_compiler.clone()),
         };
 
         let local_name = match function_type {
@@ -272,7 +272,7 @@ impl Compiler {
                 eprint!(" at {}", token.lexeme);
             }
         }
-        eprintln!(":{}", message);
+        eprintln!(": {}", message);
         self.had_error = true;
     }
 
@@ -348,9 +348,9 @@ impl Compiler {
                 ExprssionType::BINARY => self.binary(false),
                 _ => self.error("Incorrect infix rule".to_owned()),
             }
-            if can_assign && self.match_token(TokenType::TokenEqual) {
-                self.error("Invalid assigment target.".to_owned());
-            }
+        }
+        if can_assign && self.match_token(TokenType::TokenEqual) {
+            self.error("Invalid assigment target.".to_owned());
         }
     }
     fn string(&mut self, can_assign: bool) {
@@ -572,14 +572,12 @@ impl Compiler {
         }
     }
     fn this(&mut self, can_assign: bool) {
-        match &self.class_compiler {
-            None => {
-                self.error("Can't use 'this' outside of a class.".to_owned());
-            }
-            Some(class_compiler) => {
-                self.variable(false);
-            }
+        if self.class_compiler.is_none() {
+            self.error("Can't use 'this' outside of a class.".to_owned());
+            return;
         }
+
+        self.variable(false);
     }
     fn binary(&mut self, can_assign: bool) {
         let token_type = self.previous.token_type.clone();
@@ -875,11 +873,12 @@ impl Compiler {
     fn method(&mut self) {
         self.consume(TokenType::TokenIdentifier, "Expect method name.".to_owned());
         let constant = self.identifier_constant_once(&self.previous.clone());
-        let mut type_ = FunctionType::TypeMethod;
-        if self.previous.lexeme == "init" {
-            type_ = FunctionType::TypeInitializer;
-        }
-        self.function(type_);
+        let function_type = if self.previous.lexeme == "init" {
+            FunctionType::TypeInitializer
+        } else {
+            FunctionType::TypeMethod
+        };
+        self.function(function_type);
         self.emit_byte(OpCode::Method(constant));
     }
     fn function_declaration(&mut self) {
@@ -939,27 +938,26 @@ impl Compiler {
         self.declare_variable();
         self.emit_byte(OpCode::Class(name_constant));
         self.define_variable(name_constant);
-        let class_compiler = ClassCompiler {
-            enclosing: self.class_compiler.clone(),
+        self.class_compiler = Some(Box::new(ClassCompiler {
+            enclosing: self.class_compiler.take(),
             has_super_class: false,
-        };
-        self.class_compiler = Some(Box::new(class_compiler.clone()));
+        }));
         if self.match_token(TokenType::TokenLess) {
             self.consume(
                 TokenType::TokenIdentifier,
                 "Expected superclass name.".to_owned(),
             );
             self.variable(false);
-            if class_name == self.previous {
-                self.error("A class can't ingerit from itself".to_owned());
+            if class_name.lexeme == self.previous.lexeme {
+                self.error("A class can't inherit from itself".to_owned());
             }
             self.begin_scope();
             self.define_variable(0);
             self.named_variable(class_name.clone(), false);
             self.emit_byte(OpCode::Inherit);
-            let mut class_compiler_tmp = self.class_compiler.clone().unwrap();
-            class_compiler_tmp.has_super_class = true;
-            self.class_compiler = Some(class_compiler_tmp.clone());
+            if let Some(class_compiler) = self.class_compiler.as_mut() {
+                class_compiler.has_super_class = true;
+            }
         }
         self.named_variable(class_name.clone(), false);
         self.consume(
@@ -974,10 +972,11 @@ impl Compiler {
             "Expect '}' after class body.".to_owned(),
         );
         self.emit_byte(OpCode::Pop);
-        if self.class_compiler.clone().unwrap().has_super_class {
+        if self.class_compiler.as_ref().unwrap().has_super_class {
             self.end_scope();
         }
-        self.class_compiler = self.class_compiler.clone().unwrap().enclosing;
+        let enclosing = self.class_compiler.take().unwrap().enclosing;
+        self.class_compiler = enclosing;
     }
     fn declaration(&mut self) {
         if self.match_token(TokenType::TokenClass) {
@@ -2174,6 +2173,4 @@ mod tests {
     }
 }
 // TODO add tests:
-// fix test_closure4
-// probably test need to be rewritten
-// Error handling
+// TODO fix failures, some tests are now incorrect

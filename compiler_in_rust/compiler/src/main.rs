@@ -26,24 +26,24 @@ fn main() -> std::io::Result<()> {
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_0.lox",
     // )?; // OK
-    let contents = fs::read_to_string(
-        "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_1.lox",
-    )?; //NOT OK Only instances have fields.
+    // let contents = fs::read_to_string(
+    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_1.lox",
+    // )?; //OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_2.lox",
-    // )?; ; NOT OK Undefined property doStaff
+    // )?; ; //OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_3.lox",
-    // )?; Expected 0 arguments, got 1
+    // )?; //OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_4.lox",
-    // )?; NOT OK
-    // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_5.lox",
-    // )?; NOT OK Undefined property doStaff
+    // )?; //NOT OK
+    let contents = fs::read_to_string(
+        "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_5.lox",
+    )?; //NOT OK Undefined property doStaff
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/closure.lox",
-    // )?; NOT OK
+    // )?; // NOT OK
     //  let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/echo.lox",
     // )?; NOT OK
