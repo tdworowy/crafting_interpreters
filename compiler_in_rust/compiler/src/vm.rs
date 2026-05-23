@@ -642,7 +642,7 @@ impl VM {
 
                         return InterpretResult::InterpretOk;
                     }
-
+                    self.stack.truncate(frame.slot_start);
                     self.push(result);
                 }
 
@@ -861,8 +861,80 @@ impl VM {
                         sub_class.methods.insert(name.clone(), method.clone());
                     }
 
-                    self.pop(); // subclass
-                    self.pop(); // superclass
+                    // self.pop(); // subclass
+                    // self.pop(); // superclass maybe be wrong
+                }
+                OpCode::GetSuper(index) => {
+                    let name = {
+                        let frame = &self.call_frames[frame_index];
+
+                        frame.closure.borrow().function.chunk.constants[index as usize].as_string()
+                    };
+
+                    // stack:
+                    // ... receiver superclass
+                    let superclass = self.pop();
+                    let superclass = match superclass {
+                        Value::Obj(obj) => match &*obj.borrow() {
+                            Obj::Class(class) => class.clone(),
+                            _ => {
+                                self.runtime_error("Superclass must be a class.".to_string());
+                                return InterpretResult::InterpretRuntimeError;
+                            }
+                        },
+
+                        _ => {
+                            self.runtime_error("Superclass must be a class.".to_string());
+                            return InterpretResult::InterpretRuntimeError;
+                        }
+                    };
+
+                    let receiver = self.peek(0).clone();
+                    let method = match superclass.borrow().methods.get(&name.data) {
+                        Some(method) => method.clone(),
+                        None => {
+                            self.runtime_error(format!("Undefined property '{}'.", name.data));
+
+                            return InterpretResult::InterpretRuntimeError;
+                        }
+                    };
+
+                    let bound_method = ObjBoundMethod {
+                        receiver,
+                        method: method.as_closure(),
+                    };
+
+                    self.pop();
+                    self.push(Value::Obj(Rc::new(RefCell::new(Obj::BoundMethod(
+                        bound_method,
+                    )))));
+                }
+                OpCode::SuperInvoke(index, arg_count) => {
+                    let name = {
+                        let frame = &self.call_frames[frame_index];
+
+                        frame.closure.borrow().function.chunk.constants[index as usize].as_string()
+                    };
+
+                    let superclass = self.pop();
+                    let superclass = match superclass {
+                        Value::Obj(obj) => match &*obj.borrow() {
+                            Obj::Class(class) => class.clone(),
+                            _ => {
+                                self.runtime_error("Superclass must be a class.".to_string());
+                                return InterpretResult::InterpretRuntimeError;
+                            }
+                        },
+
+                        _ => {
+                            self.runtime_error("Superclass must be a class.".to_string());
+                            return InterpretResult::InterpretRuntimeError;
+                        }
+                    };
+
+                    if !self.invoke_from_class(superclass, name.data.clone(), arg_count as usize) {
+                        return InterpretResult::InterpretRuntimeError;
+                    }
                 }
 
                 OpCode::Nop => {}
@@ -891,5 +963,3 @@ impl VM {
         self.run()
     }
 }
-
-// TODO handle GetSupper and SuperInvoke

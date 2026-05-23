@@ -232,7 +232,7 @@ impl Compiler {
     }
     fn emit_jump(&mut self, instruction: fn(i16) -> OpCode) -> isize {
         self.emit_byte(instruction(0));
-        (self.current_chunk().count - 1) as isize
+        (self.current_chunk().count - 1)
     }
     fn patch_jump(&mut self, jump_index: isize) {
         let offset = self.current_chunk().count - jump_index - 1;
@@ -543,7 +543,7 @@ impl Compiler {
 
         arg_count
     }
-    fn super_(&mut self, can_assign: bool) {
+    fn super_(&mut self, _can_assign: bool) {
         match &self.class_compiler {
             None => {
                 self.error("Can't use 'super' outside of a class.".to_owned());
@@ -553,16 +553,18 @@ impl Compiler {
                     self.error("Can't use 'super' in a class with no superclass.".to_owned());
                 }
                 self.consume(TokenType::TokenDot, "Expect '.' after 'super'.".to_owned());
+
                 self.consume(
                     TokenType::TokenIdentifier,
                     "Expect superclass method name.".to_owned(),
                 );
                 let name = self.identifier_constant_once(&self.previous.clone());
-
                 self.named_variable(self.synthetic_token("this".to_owned()), false);
+
                 if self.match_token(TokenType::TokenLeftParen) {
                     let arg_count = self.argument_list();
                     self.named_variable(self.synthetic_token("super".to_owned()), false);
+
                     self.emit_byte(OpCode::SuperInvoke(name, arg_count));
                 } else {
                     self.named_variable(self.synthetic_token("super".to_owned()), false);
@@ -948,11 +950,14 @@ impl Compiler {
                 "Expected superclass name.".to_owned(),
             );
             self.variable(false);
+
             if class_name.lexeme == self.previous.lexeme {
                 self.error("A class can't inherit from itself".to_owned());
             }
             self.begin_scope();
+            self.add_local(self.synthetic_token("super".to_owned()));
             self.define_variable(0);
+
             self.named_variable(class_name.clone(), false);
             self.emit_byte(OpCode::Inherit);
             if let Some(class_compiler) = self.class_compiler.as_mut() {

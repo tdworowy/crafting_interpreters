@@ -84,7 +84,7 @@ impl Value {
     pub fn as_bound_method(&self) -> Rc<ObjBoundMethod> {
         let obj = self.as_obj();
         match &*obj.borrow() {
-            Obj::BoundMethod(boundMethod) => Rc::new(boundMethod.clone()),
+            Obj::BoundMethod(bound_method) => Rc::new(bound_method.clone()),
             _ => panic!("Value is not a boundMethod"),
         }
     }
