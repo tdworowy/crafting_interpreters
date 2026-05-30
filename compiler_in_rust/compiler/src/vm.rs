@@ -48,6 +48,8 @@ pub fn clock_native(_: usize, _: &[Value]) -> Value {
 impl VM {
     pub fn new() -> Self {
         let mut vm = VM {
+            call_frames: vec![],
+            stack: vec![Value::Nil; 1024],
             stack_top: 0,
             globals: Default::default(),
             strings: Default::default(),
@@ -58,8 +60,6 @@ impl VM {
             objects: vec![],
             gray_count: 0,
             gray_capacity: 0,
-            stack: vec![Value::Nil; 256],
-            call_frames: vec![],
             gray_stack: vec![],
         };
         vm.define_native("clock", clock_native);
@@ -70,19 +70,30 @@ impl VM {
         self.stack_top += 1;
     }
     pub fn pop(&mut self) -> Value {
+        if self.stack_top == 0 {
+            panic!("Stack underflow");
+        }
         self.stack_top -= 1;
         self.stack[self.stack_top].clone()
     }
     fn peek(&mut self, distance: usize) -> Value {
         let index = self.stack_top as isize - 1 - distance as isize;
         if index < 0 {
-             println!("DEBUG: peek index out of bounds: distance={} stack_top={} stack_len={}", distance, self.stack_top, self.stack.len());
-             panic!("Peek index out of bounds");
+            println!(
+                "DEBUG: peek index out of bounds: distance={} stack_top={} stack_len={}",
+                distance,
+                self.stack_top,
+                self.stack.len()
+            );
+            panic!("Peek index out of bounds");
         }
         self.stack[index as usize].to_owned()
     }
     fn print_stack(&self) {
         for (i, v) in self.stack.iter().enumerate() {
+            if i >= self.stack_top {
+                break;
+            }
             print!("{i}: ");
             v.print();
             println!();
@@ -90,7 +101,7 @@ impl VM {
     }
     fn reset_stack(&mut self) {
         self.stack_top = 0;
-        self.stack = vec![Value::Nil; 256];
+        self.stack = vec![Value::Nil; 1024];
         self.open_upvalues = vec![];
     }
     fn runtime_error(&mut self, msg: String) {
@@ -274,18 +285,12 @@ impl VM {
         self.open_upvalues.retain(|uv| uv.borrow().is_open());
     }
     fn close_upvalues(&mut self, last: usize) {
-        let stack_len = self.stack.len();
         for upvalue in &self.open_upvalues {
             let mut uv = upvalue.borrow_mut();
 
             if let Some(location) = uv.location {
                 if location >= last {
-                    if location < stack_len {
-                        uv.closed = self.stack[location].clone();
-                    } else {
-                         // Fallback for script closure or other stack management issues
-                         println!("DEBUG: close_upvalues location {} out of bounds (stack_len {})", location, stack_len);
-                    }
+                    uv.closed = self.stack[location].clone();
                     uv.location = None;
                 }
             }
@@ -655,22 +660,28 @@ impl VM {
                         {
                             let frame = &mut self.call_frames[frame_index];
                             is_local = match frame.closure.borrow().function.chunk.code[frame.ip] {
-                                 OpCode::Data(d) => d == 1,
-                                 _ => panic!("Expected Data opcode for upvalue is_local"),
+                                OpCode::Data(d) => d == 1,
+                                _ => panic!("Expected Data opcode for upvalue is_local"),
                             };
                             frame.ip += 1;
-                            upvalue_index = match frame.closure.borrow().function.chunk.code[frame.ip] {
-                                 OpCode::Data(d) => d,
-                                 _ => panic!("Expected Data opcode for upvalue index"),
-                            };
+                            upvalue_index =
+                                match frame.closure.borrow().function.chunk.code[frame.ip] {
+                                    OpCode::Data(d) => d,
+                                    _ => panic!("Expected Data opcode for upvalue index"),
+                                };
                             frame.ip += 1;
                         }
 
                         if is_local {
                             let slot_start = self.call_frames[frame_index].slot_start;
-                            closure.upvalues.push(self.capture_upvalue(slot_start + upvalue_index as usize));
+                            closure
+                                .upvalues
+                                .push(self.capture_upvalue(slot_start + upvalue_index as usize));
                         } else {
-                            closure.upvalues.push(Rc::clone(&self.call_frames[frame_index].closure.borrow().upvalues[upvalue_index as usize]));
+                            closure.upvalues.push(Rc::clone(
+                                &self.call_frames[frame_index].closure.borrow().upvalues
+                                    [upvalue_index as usize],
+                            ));
                         }
                     }
 
@@ -678,7 +689,7 @@ impl VM {
                 }
 
                 OpCode::CloseUpvalue => {
-                    let last = self.stack.len() - 1;
+                    let last = self.stack_top - 1;
 
                     self.close_upvalues(last);
 
@@ -695,7 +706,7 @@ impl VM {
                         self.pop(); // pop the script closure
                         return InterpretResult::InterpretOk;
                     }
-                    self.stack.truncate(frame.slot_start);
+                    self.stack_top = frame.slot_start;
                     self.push(result);
                 }
 
@@ -816,7 +827,7 @@ impl VM {
                                     if let Some(value) = instance.fields.get(&name.data) {
                                         let value = value.clone();
 
-                                        let slot = self.stack.len() - 1 - arg_count as usize;
+                                        let slot = self.stack_top - 1 - arg_count as usize;
                                         self.stack[slot] = value.clone();
 
                                         if !self.call_value(value, arg_count as usize) {
@@ -1003,10 +1014,14 @@ impl VM {
         let closure = Rc::new(RefCell::new(ObjClosure::new(function_rc.clone())));
         // Standard Lox: push closure first, then call.
         // The script closure stays at stack[0] during entire execution.
-        self.push(Value::Obj(Rc::new(RefCell::new(Obj::Closure((*closure.borrow()).clone())))));
+        self.push(Value::Obj(Rc::new(RefCell::new(Obj::Closure(
+            (*closure.borrow()).clone(),
+        )))));
 
         self.call(closure, 0);
-        self.run()
+        let result = self.run();
+        self.reset_stack();
+        result
     }
 }
 
@@ -1015,29 +1030,103 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_class_inheritance_execution() {
+    fn test_arithmetic() {
+        let mut vm = VM::new();
+        let source = "1 + 2 * 3;".to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+
+    #[test]
+    fn test_variables() {
         let mut vm = VM::new();
         let source = r#"
-            class A {
-                method() { return "A"; }
+            var a = 1;
+            var b = 2;
+            var c = a + b;
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+
+    #[test]
+    fn test_control_flow() {
+        let mut vm = VM::new();
+        let source = r#"
+            var a = 0;
+            if (true) { a = 1; } else { a = 2; }
+            var b = 0;
+            while (b < 3) { b = b + 1; }
+            var c = 0;
+            for (var i = 0; i < 3; i = i + 1) { c = c + 1; }
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+
+    #[test]
+    fn test_closures() {
+        let mut vm = VM::new();
+        let source = r#"
+            fun makeCounter() {
+              var i = 0;
+              fun count() {
+                i = i + 1;
+                return i;
+              }
+              return count;
             }
-            class B < A {
-                method() { return "B"; }
-                test() { return super.method(); }
+            var counter = makeCounter();
+            counter();
+            counter();
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+
+    #[test]
+    fn test_classes() {
+        let mut vm = VM::new();
+        let source = r#"
+            class Cake {
+              eat() {
+                return "Eating cake";
+              }
             }
-            var b = B();
-            if (b.method() != "B") { var x = 1 / 0; }
-            if (b.test() != "A") { var x = 1 / 0; }
-        "#.to_string();
-        
-        // We use a small hack here: if 'panic' is encountered as an undefined variable, 
-        // it will cause a runtime error, which we can detect.
-        // Better yet, if the script finishes successfully, it returns InterpretOk.
-        
-        let result = vm.interpret(source);
-        match result {
-            InterpretResult::InterpretOk => {},
-            _ => panic!("Execution failed or returned error"),
-        }
+            var cake = Cake();
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+
+    #[test]
+    fn test_class_basic() {
+        let mut vm = VM::new();
+        let source = r#"
+            class Cake {}
+            var cake = Cake();
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+
+    #[test]
+    fn test_inheritance() {
+        let mut vm = VM::new();
+        let source = r#"
+            class superClass {
+                doStaff() {
+                   print "Inheritance works";
+                }
+            }
+            class subClass < superClass {
+                doStaff() {
+                   super.doStaff();
+                }
+            }
+            var obj = subClass();
+            obj.doStaff();
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
     }
 }
