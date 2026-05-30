@@ -41,6 +41,7 @@ pub enum OpCode {
     Inherit,
     GetSuper(isize),
     CloseUpvalue,
+    Data(u8),
     Nop,
 }
 #[derive(Debug, Clone, PartialEq)]

@@ -137,7 +137,7 @@ pub(crate) struct Compiler {
     scanner: Option<Scanner>,
     current: Token,
     previous: Token,
-    had_error: bool,
+    pub had_error: bool,
     panic_mode: bool,
 }
 
@@ -481,7 +481,13 @@ impl Compiler {
             .current_chunk()
             .constants
             .iter()
-            .position(|c| c == &value)
+            .position(|c| match c {
+                Value::Obj(o1) => match &*o1.borrow() {
+                    Obj::String(s1) => name.lexeme == s1.data,
+                    _ => false,
+                },
+                _ => false,
+            })
         {
             i as isize
         } else {
@@ -868,8 +874,8 @@ impl Compiler {
 
         for upvalue in &compiler.upvalues {
             let is_local_byte = if upvalue.is_local { 1 } else { 0 };
-            self.emit_byte(OpCode::Constant(is_local_byte));
-            self.emit_byte(OpCode::Constant(upvalue.index));
+            self.emit_byte(OpCode::Data(is_local_byte));
+            self.emit_byte(OpCode::Data(upvalue.index as u8));
         }
     }
     fn method(&mut self) {
@@ -963,8 +969,10 @@ impl Compiler {
             if let Some(class_compiler) = self.class_compiler.as_mut() {
                 class_compiler.has_super_class = true;
             }
+        } else {
+            self.named_variable(class_name.clone(), false);
         }
-        self.named_variable(class_name.clone(), false);
+
         self.consume(
             TokenType::TokenLeftBrace,
             "Expect '{' before class body.".to_owned(),
@@ -1285,8 +1293,12 @@ mod tests {
                 OpCode::DefineGlobal(0),
                 OpCode::GetGlobal(0),
                 OpCode::Closure(2),
+                OpCode::Data(1),
+                OpCode::Data(0),
                 OpCode::Method(1),
                 OpCode::Closure(4),
+                OpCode::Data(1),
+                OpCode::Data(0),
                 OpCode::Method(3),
                 OpCode::Pop,
                 OpCode::GetGlobal(0),
@@ -1300,7 +1312,7 @@ mod tests {
                 OpCode::Nil,
                 OpCode::Return,
             ],
-            lines: vec![1, 1, 1, 4, 4, 7, 7, 8, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10],
+            lines: vec![1, 1, 1, 4, 4, 4, 4, 7, 7, 7, 7, 8, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10],
             constants: vec![
                 value_class,
                 value_init,
@@ -1552,18 +1564,20 @@ mod tests {
         let value_expected_fun2 = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_fun2))));
 
         let expected_inner_fun1_chunk = Chunk {
-            count: 8,
+            count: 10,
             code: vec![
                 OpCode::GetLocal(1),
                 OpCode::Constant(0),
                 OpCode::Add,
                 OpCode::Closure(1),
+                OpCode::Data(1),
+                OpCode::Data(2),
                 OpCode::Constant(1),
                 OpCode::Constant(2),
                 OpCode::GetLocal(3),
                 OpCode::Return,
             ],
-            lines: vec![2, 2, 2, 5, 5, 5, 6, 6],
+            lines: vec![2, 2, 2, 5, 5, 5, 5, 5, 6, 6],
             constants: vec![Value::Number(1f64), value_expected_fun2],
         };
 
@@ -1833,9 +1847,15 @@ mod tests {
 
         // middle: fun fun2() { fun fun3() { ... } return fun3 }
         let expected_fun2_chunk = Chunk {
-            count: 3,
-            code: vec![OpCode::Closure(0), OpCode::GetLocal(1), OpCode::Return],
-            lines: vec![6, 7, 7],
+            count: 5,
+            code: vec![
+                OpCode::Closure(0),
+                OpCode::Data(1),
+                OpCode::Data(2),
+                OpCode::GetLocal(1),
+                OpCode::Return,
+            ],
+            lines: vec![6, 7, 7, 7, 7],
             constants: vec![value_expected_fun3],
         };
         let mut expected_fun2 = ObjFunction::new();
@@ -1851,18 +1871,24 @@ mod tests {
 
         // outer: fun fun1() { let x = 10; ... return fun2; }
         let expected_fun1_chunk = Chunk {
-            count: 8,
+            count: 14,
             code: vec![
                 OpCode::GetGlobal(0),
                 OpCode::Pop,
-                OpCode::Constant(2),
-                OpCode::SetGlobal(1),
+                OpCode::Constant(1),
+                OpCode::SetGlobal(0),
                 OpCode::Pop,
-                OpCode::Closure(3),
+                OpCode::Closure(2),
+                OpCode::Data(1),
+                OpCode::Data(1),
+                OpCode::Data(1),
+                OpCode::Data(2),
+                OpCode::Data(0),
+                OpCode::Data(1),
                 OpCode::GetLocal(1),
                 OpCode::Return,
             ],
-            lines: vec![2, 2, 2, 2, 2, 8, 9, 9],
+            lines: vec![2, 2, 2, 2, 2, 8, 8, 8, 8, 8, 8, 8, 9, 9],
             constants: vec![value_string_x, Value::Number(10f64), value_expected_fun2],
         };
         let mut expected_fun1 = ObjFunction::new();
@@ -2118,12 +2144,14 @@ mod tests {
         ))));
 
         let expected_chunk = Chunk {
-            count: 24,
+            count: 22,
             code: vec![
                 OpCode::Class(0),
                 OpCode::DefineGlobal(0),
                 OpCode::GetGlobal(0),
                 OpCode::Closure(2),
+                OpCode::Data(1),
+                OpCode::Data(0),
                 OpCode::Method(1),
                 OpCode::Pop,
                 OpCode::Class(3),
@@ -2133,8 +2161,9 @@ mod tests {
                 OpCode::Inherit,
                 OpCode::GetGlobal(3),
                 OpCode::Closure(4),
+                OpCode::Data(1),
+                OpCode::Data(0),
                 OpCode::Method(1),
-                OpCode::Pop,
                 OpCode::Pop,
                 OpCode::GetGlobal(3),
                 OpCode::Call(0),
@@ -2146,7 +2175,8 @@ mod tests {
                 OpCode::Return,
             ],
             lines: vec![
-                1, 1, 1, 4, 4, 5, 6, 6, 6, 6, 6, 6, 9, 9, 10, 10, 11, 11, 11, 12, 12, 12, 12, 12,
+                1, 1, 1, 4, 4, 4, 4, 5, 6, 6, 6, 6, 6, 6, 9, 9, 9, 9, 10, 11, 11, 11, 12, 12, 12,
+                12, 12,
             ],
             constants: vec![
                 value_string_super_class,         // 0
