@@ -73,11 +73,11 @@ impl Value {
         }
     }
 
-    pub fn as_class(&self) -> Rc<RefCell<ObjClass>> {
+    pub fn as_class(&self) -> Rc<ObjClass> {
         let obj = self.as_obj();
         match &*obj.borrow() {
-            Obj::Class(klass) => klass.clone(),
-            _ => panic!("Value is not a klass"),
+            Obj::Class(klass) => Rc::clone(klass),
+            _ => panic!("Value is not a Class"),
         }
     }
 
@@ -107,7 +107,7 @@ impl Value {
                     Obj::String(s) => println!("{}", &s.data),
                     Obj::Closure(_) => println!("<closure>"),
                     Obj::Native(_) => println!("<native fn>"),
-                    Obj::Class(klass) => println!("<class>{:?}<class>", klass.borrow().name),
+                    Obj::Class(klass) => println!("<class>{:?}<class>", klass.name),
                     Obj::BoundMethod(_) => println!("<bound method>"),
                     _ => {}
                 }

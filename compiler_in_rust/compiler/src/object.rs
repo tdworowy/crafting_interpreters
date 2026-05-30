@@ -14,7 +14,7 @@ pub enum Obj {
     Closure(ObjClosure),
     Native(ObjNative),
     Upvalue(ObjUpvalue),
-    Class(Rc<RefCell<ObjClass>>),
+    Class(Rc<ObjClass>),
     Instance(ObjInstance),
     BoundMethod(ObjBoundMethod),
 }
@@ -27,7 +27,7 @@ impl Obj {
             Obj::Closure(_) => print!("<closure>"),
             Obj::Native(_) => print!("<native fn>"),
             Obj::Upvalue(_) => print!("<upvalue>"),
-            Obj::Class(c) => print!("<class {}>", c.borrow().name),
+            Obj::Class(c) => print!("<class {}>", c.name),
             Obj::Instance(_) => print!("<instance>"),
             Obj::BoundMethod(_) => print!("<bound method>"),
         }
@@ -177,12 +177,12 @@ impl ObjClass {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjInstance {
-    pub klass: Rc<RefCell<ObjClass>>,
+    pub klass: Rc<ObjClass>,
     pub fields: HashMap<String, Value>,
 }
 
 impl ObjInstance {
-    pub fn new(klass: Rc<RefCell<ObjClass>>) -> Self {
+    pub fn new(klass: Rc<ObjClass>) -> Self {
         Self {
             klass,
             fields: HashMap::new(),

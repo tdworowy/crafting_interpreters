@@ -72,8 +72,15 @@ impl VM {
         self.stack_top -= 1;
         self.stack.pop().expect("Can't pop value from stack")
     }
-    fn peek(&mut self, distance: i64) -> Value {
-        self.stack[self.stack_top - 1 - distance as usize].to_owned()
+    fn peek(&mut self, distance: usize) -> Value {
+        self.stack[self.stack_top - 1 - distance].to_owned()
+    }
+    fn print_stack(&self) {
+        for (i, v) in self.stack.iter().enumerate() {
+            print!("{i}: ");
+            v.print();
+            println!();
+        }
     }
     fn reset_stack(&mut self) {
         self.stack_top = 0;
@@ -158,25 +165,24 @@ impl VM {
 
         match &*obj {
             Obj::Class(klass) => {
-                let instance = Obj::Instance(ObjInstance::new(klass.clone()));
-
-                let instance_val = obj_val(instance);
+                let instance = ObjInstance::new(klass.clone());
+                let instance_val = obj_val(Obj::Instance(instance));
 
                 let slot = self.stack_top - arg_count - 1;
                 self.stack[slot] = instance_val.clone();
 
-                let klass_borrow = klass.borrow();
+                let klass_borrow = klass.clone();
 
                 if let Some(init) = klass_borrow.methods.get("init") {
-                    //drop(obj); // safe before recursive call
-                    self.call_value(init.clone(), arg_count)
-                } else {
-                    if arg_count != 0 {
-                        self.runtime_error(format!("Expected 0 arguments, got {}.", arg_count));
-                        return false;
-                    }
-                    true
+                    return self.call_value(init.clone(), arg_count);
                 }
+
+                if arg_count != 0 {
+                    self.runtime_error(format!("Expected 0 arguments, got {}.", arg_count));
+                    return false;
+                }
+
+                true
             }
 
             Obj::Closure(c) => self.call(Rc::new(RefCell::new(c.clone())), arg_count),
@@ -208,13 +214,8 @@ impl VM {
             }
         }
     }
-    fn invoke_from_class(
-        &mut self,
-        klass: Rc<RefCell<ObjClass>>,
-        name: String,
-        arg_count: usize,
-    ) -> bool {
-        let method = match klass.borrow().methods.get(&name) {
+    fn invoke_from_class(&mut self, klass: Rc<ObjClass>, name: String, arg_count: usize) -> bool {
+        let method = match klass.methods.get(&name) {
             Some(method) => method.clone(),
             None => {
                 self.runtime_error(format!("Undefined property {}", name));
@@ -282,10 +283,30 @@ impl VM {
             .retain(|uv| uv.borrow().location.is_some());
     }
     fn define_method(&mut self, name: String) {
-        let method: Value = self.peek(0);
-        let klass = self.peek(1).as_class();
-        klass.borrow_mut().methods.insert(name, method.clone());
-        self.pop();
+        let method = self.peek(0);
+        let klass_val = self.peek(1);
+        let klass = match klass_val {
+            Value::Obj(obj) => match &*obj.borrow() {
+                Obj::Class(c) => Rc::clone(c),
+                _ => {
+                    panic!("Expected class")
+                }
+            },
+            _ => panic!("Expected object"),
+        };
+
+        // rebuild class with new method table
+        let mut new_class = (*klass).clone();
+        new_class.methods.insert(name, method.clone());
+
+        // replace class object in place
+        let new_rc = Rc::new(new_class);
+
+        // write back into stack slot
+        let slot = self.stack_top - 2;
+        self.stack[slot] = Value::Obj(Rc::new(RefCell::new(Obj::Class(new_rc))));
+
+        self.pop(); // method
     }
     fn is_falsey(&self, value: Value) -> bool {
         value.is_nil() || (value.is_bool() && !value.as_bool())
@@ -603,7 +624,7 @@ impl VM {
                 }
 
                 OpCode::Call(arg_count) => {
-                    let callee = self.peek(arg_count as i64).clone();
+                    let callee = self.peek(arg_count as usize).clone();
 
                     if !self.call_value(callee, arg_count as usize) {
                         return InterpretResult::InterpretRuntimeError;
@@ -658,10 +679,12 @@ impl VM {
                     };
 
                     self.push(Value::Obj(Rc::new(RefCell::new(Obj::Class(Rc::new(
-                        RefCell::new(class),
+                        class,
                     ))))));
                 }
                 OpCode::Method(index) => {
+                    println!("=== BEFORE METHOD ===");
+                    self.print_stack();
                     let name = {
                         let frame = &self.call_frames[frame_index];
 
@@ -672,11 +695,11 @@ impl VM {
                 OpCode::SetProperty(index) => {
                     let name = {
                         let frame = &self.call_frames[frame_index];
-
                         frame.closure.borrow().function.chunk.constants[index as usize].as_string()
                     };
 
                     let receiver = self.peek(1).clone();
+                    let value = self.peek(0).clone();
 
                     match receiver {
                         Value::Obj(obj) => {
@@ -684,17 +707,14 @@ impl VM {
 
                             match &mut *obj_ref {
                                 Obj::Instance(instance) => {
-                                    let value = self.peek(0).clone();
-
                                     instance.fields.insert(name.data.clone(), value.clone());
-                                    let value = self.pop();
-                                    self.pop();
-                                    self.push(value);
+
+                                    self.pop(); // value
+                                    self.pop(); // receiver
                                 }
 
                                 _ => {
                                     self.runtime_error("Only instances have fields.".to_string());
-
                                     return InterpretResult::InterpretRuntimeError;
                                 }
                             }
@@ -702,7 +722,6 @@ impl VM {
 
                         _ => {
                             self.runtime_error("Only instances have fields.".to_string());
-
                             return InterpretResult::InterpretRuntimeError;
                         }
                     }
@@ -710,67 +729,45 @@ impl VM {
                 OpCode::GetProperty(index) => {
                     let name = {
                         let frame = &self.call_frames[frame_index];
-
                         frame.closure.borrow().function.chunk.constants[index as usize].as_string()
                     };
+
                     let receiver = self.peek(0).clone();
 
-                    match &receiver {
-                        Value::Obj(obj) => {
-                            let obj_ref = obj.borrow();
+                    let result = match &receiver {
+                        Value::Obj(obj) => match &*obj.borrow() {
+                            Obj::Instance(instance) => {
+                                if let Some(value) = instance.fields.get(&name.data) {
+                                    value.clone()
+                                } else if let Some(method) = instance.klass.methods.get(&name.data)
+                                {
+                                    let bound = ObjBoundMethod {
+                                        receiver: receiver.clone(),
+                                        method: method.as_closure(),
+                                    };
 
-                            match &*obj_ref {
-                                Obj::Instance(instance) => {
-                                    // Fields first.
-                                    if let Some(value) = instance.fields.get(&name.data) {
-                                        let value = value.clone();
-
-                                        self.pop();
-                                        self.push(value);
-                                    } else {
-                                        // Then methods.
-                                        let method =
-                                            match instance.klass.borrow().methods.get(&name.data) {
-                                                Some(method) => method.clone(),
-                                                None => {
-                                                    self.runtime_error(format!(
-                                                        "Undefined property '{}'.",
-                                                        name.data
-                                                    ));
-
-                                                    return InterpretResult::InterpretRuntimeError;
-                                                }
-                                            };
-
-                                        let bound_method = ObjBoundMethod {
-                                            receiver: receiver.clone(),
-                                            method: method.as_closure(),
-                                        };
-
-                                        self.pop();
-
-                                        self.push(Value::Obj(Rc::new(RefCell::new(
-                                            Obj::BoundMethod(bound_method),
-                                        ))));
-                                    }
-                                }
-
-                                _ => {
-                                    self.runtime_error(
-                                        "Only instances have properties.".to_string(),
-                                    );
-
+                                    Value::Obj(Rc::new(RefCell::new(Obj::BoundMethod(bound))))
+                                } else {
+                                    self.runtime_error(format!(
+                                        "Undefined property '{}'.",
+                                        name.data
+                                    ));
                                     return InterpretResult::InterpretRuntimeError;
                                 }
                             }
-                        }
-
+                            _ => {
+                                self.runtime_error("Only instances have properties.".to_string());
+                                return InterpretResult::InterpretRuntimeError;
+                            }
+                        },
                         _ => {
                             self.runtime_error("Only instances have properties.".to_string());
-
                             return InterpretResult::InterpretRuntimeError;
                         }
-                    }
+                    };
+
+                    self.pop();
+                    self.push(result);
                 }
                 OpCode::Invoke(index, arg_count) => {
                     let name = {
@@ -778,7 +775,7 @@ impl VM {
 
                         frame.closure.borrow().function.chunk.constants[index as usize].as_string()
                     };
-                    let receiver = self.peek(arg_count as i64).clone();
+                    let receiver = self.peek(arg_count as usize).clone();
 
                     match receiver {
                         Value::Obj(obj) => {
@@ -849,20 +846,27 @@ impl VM {
                         }
                     };
                     let mut tmp_obj = sub_obj.borrow_mut();
-                    let mut sub_class = match &mut *tmp_obj {
-                        Obj::Class(c) => c.borrow_mut(),
+                    let sub_class = match &*tmp_obj {
+                        Obj::Class(c) => Rc::clone(c),
                         _ => {
                             self.runtime_error("Subclass must be a class.".to_string());
                             return InterpretResult::InterpretRuntimeError;
                         }
                     };
 
-                    for (name, method) in &super_class.borrow().methods {
-                        sub_class.methods.insert(name.clone(), method.clone());
+                    let mut new_methods = sub_class.methods.clone();
+
+                    for (name, method) in &super_class.methods {
+                        new_methods.insert(name.clone(), method.clone());
                     }
 
-                    // self.pop(); // subclass
-                    // self.pop(); // superclass maybe be wrong
+                    let new_sub_class = Rc::new(ObjClass {
+                        name: sub_class.name.clone(),
+                        methods: new_methods,
+                    });
+                    let slot = self.stack_top - 1;
+                    self.stack[slot] = Value::Obj(Rc::new(RefCell::new(Obj::Class(new_sub_class))));
+                    self.pop();
                 }
                 OpCode::GetSuper(index) => {
                     let name = {
@@ -890,7 +894,7 @@ impl VM {
                     };
 
                     let receiver = self.peek(0).clone();
-                    let method = match superclass.borrow().methods.get(&name.data) {
+                    let method = match superclass.methods.get(&name.data) {
                         Some(method) => method.clone(),
                         None => {
                             self.runtime_error(format!("Undefined property '{}'.", name.data));
