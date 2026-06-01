@@ -11,39 +11,39 @@ mod vm;
 
 fn main() -> std::io::Result<()> {
     let mut vm = VM::new();
-    let contents = fs::read_to_string(
-        "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/plus_equal.lox",
-    )?; // OK
+    // let contents = fs::read_to_string(
+    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/plus_equal.lox",
+    // )?; // OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/2plus2.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/benchmark.lox",
-    // )?; //NOT OK
+    // )?; // NOT OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/block1.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/block2.lox",
-    // )?; //OK
+    // )?; // OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_0.lox",
-    // )?; //OK
+    // )?; // OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_1.lox",
-    // )?; //OK
+    // )?; // OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_2.lox",
-    // )?; //OK
+    // )?; // OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_3.lox",
-    // )?; //OK
+    // )?; // OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_4.lox",
-    // )?; //NOT OK Class methods don't work
+    // )?; // NOT OK Class methods don't work
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_5.lox",
-    // )?; //OK
+    // )?; // OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/closure.lox",
     // )?; // OK
@@ -52,19 +52,19 @@ fn main() -> std::io::Result<()> {
     // )?; // OK
     //  let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/example1.lox",
-    // )?; OK
+    // )?; // OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/example2.lox",
-    // )?; OK
+    // )?; // OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/expresions.lox",
-    // )?; OK
+    // )?; // OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/fib1.lox",
-    // )?; OK
+    // )?; // OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/fib2.lox",
-    // )?; OK
+    // )?; // OK
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/fib3.lox",
     // )?; // OK
@@ -77,8 +77,10 @@ fn main() -> std::io::Result<()> {
     // let contents = fs::read_to_string(
     //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/while_block.lox",
     // )?; // OK
+    let contents = fs::read_to_string(
+        "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/recursion.lox",
+    )?; // OK
     vm.interpret(contents.to_owned());
 
     Ok(())
 }
-// TODO after all is OK, test all lox scripts again
