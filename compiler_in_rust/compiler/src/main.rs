@@ -10,76 +10,78 @@ mod value;
 mod vm;
 
 fn main() -> std::io::Result<()> {
+    let scripts_location = "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/";
     let mut vm = VM::new();
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/plus_equal.lox",
+    //     scripts_location.to_owned() + "plus_equal.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/2plus2.lox",
+    //     scripts_location.to_owned() + "2plus2.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/benchmark.lox",
+    //     scripts_location.to_owned() + "benchmark.lox",
     // )?; // NOT OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/block1.lox",
+    //     scripts_location.to_owned() + "block1.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/block2.lox",
+    //     scripts_location.to_owned() + "block2.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_0.lox",
+    //     scripts_location.to_owned() + "class_0.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_1.lox",
+    //     scripts_location.to_owned() + "class_1.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_2.lox",
+    //     scripts_location.to_owned() + "class_2.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_3.lox",
+    //     scripts_location.to_owned() + "class_3.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_4.lox",
+    //     scripts_location.to_owned() + "class_4.lox",
     // )?; // NOT OK Class methods don't work
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/class_5.lox",
+    //     scripts_location.to_owned() + "class_5.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/closure.lox",
+    //     scripts_location.to_owned() + "closure.lox",
     // )?; // OK
     //  let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/echo.lox",
+    //     scripts_location.to_owned() + "echo.lox",
     // )?; // OK
     //  let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/example1.lox",
+    //     scripts_location.to_owned() + "example1.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/example2.lox",
+    //     scripts_location.to_owned() + "example2.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/expresions.lox",
+    //     scripts_location.to_owned() + "expresions.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/fib1.lox",
+    //     scripts_location.to_owned() + "fib1.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/fib2.lox",
+    //     scripts_location.to_owned() + "fib2.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/fib3.lox",
+    //     scripts_location.to_owned() + "fib3.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/for.lox",
+    //     scripts_location.to_owned() + "for.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/while.lox",
+    //     scripts_location.to_owned() + "while.lox",
     // )?; // OK
     // let contents = fs::read_to_string(
-    //     "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/while_block.lox",
+    //     scripts_location.to_owned() + "while_block.lox",
     // )?; // OK
-    let contents = fs::read_to_string(
-        "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/recursion.lox",
-    )?; // OK
+    let contents = fs::read_to_string(scripts_location.to_owned() + "recursion.lox")?; // OK
+    // let contents = fs::read_to_string(
+    //     scripts_location.to_owned() + "/test.lox",
+    // )?; // OK
     vm.interpret(contents.to_owned());
 
     Ok(())
