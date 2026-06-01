@@ -703,7 +703,6 @@ impl VM {
                     self.close_upvalues(frame.slot_start);
 
                     if self.call_frames.is_empty() {
-                        self.pop(); // pop the script closure
                         return InterpretResult::InterpretOk;
                     }
                     self.stack_top = frame.slot_start;
@@ -869,12 +868,14 @@ impl VM {
                         Value::Obj(ref obj) => match &*obj.borrow() {
                             Obj::Class(c) => c.clone(),
                             _ => {
-                                self.runtime_error("Superclass must be a class.".to_string());
+                                self.runtime_error(
+                                    "Inherit: Superclass must be a class.".to_string(),
+                                );
                                 return InterpretResult::InterpretRuntimeError;
                             }
                         },
                         _ => {
-                            self.runtime_error("Superclass must be a class.".to_string());
+                            self.runtime_error("Inherit: Superclass must be a class.".to_string());
                             return InterpretResult::InterpretRuntimeError;
                         }
                     };
@@ -911,8 +912,6 @@ impl VM {
                         *tmp_obj = Obj::Class(new_sub_class);
                     }
 
-                    self.pop(); // pop sub (the one we just updated)
-                    self.pop(); // pop super
                     self.push(subclass_val);
                 }
                 OpCode::GetSuper(index) => {
@@ -929,13 +928,15 @@ impl VM {
                         Value::Obj(obj) => match &*obj.borrow() {
                             Obj::Class(class) => class.clone(),
                             _ => {
-                                self.runtime_error("Superclass must be a class.".to_string());
+                                self.runtime_error(
+                                    "GetSuper: Superclass must be a class.".to_string(),
+                                );
                                 return InterpretResult::InterpretRuntimeError;
                             }
                         },
 
                         _ => {
-                            self.runtime_error("Superclass must be a class.".to_string());
+                            self.runtime_error("GetSuper: Superclass must be a class.".to_string());
                             return InterpretResult::InterpretRuntimeError;
                         }
                     };
@@ -966,19 +967,22 @@ impl VM {
 
                         frame.closure.borrow().function.chunk.constants[index as usize].as_string()
                     };
-
                     let superclass = self.pop();
                     let superclass = match superclass {
                         Value::Obj(obj) => match &*obj.borrow() {
                             Obj::Class(class) => class.clone(),
                             _ => {
-                                self.runtime_error("Superclass must be a class.".to_string());
+                                self.runtime_error(
+                                    "SuperInvoke: Superclass must be a class.".to_string(),
+                                );
                                 return InterpretResult::InterpretRuntimeError;
                             }
                         },
 
                         _ => {
-                            self.runtime_error("Superclass must be a class.".to_string());
+                            self.runtime_error(
+                                "SuperInvoke: Superclass must be a class.".to_string(),
+                            );
                             return InterpretResult::InterpretRuntimeError;
                         }
                     };
