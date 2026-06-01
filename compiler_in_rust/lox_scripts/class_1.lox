@@ -1,6 +1,6 @@
 class TestClass {
         init(x) {
-          this.test=x;
+          this.test = x;
         }
         doStaff(y) {
            print this.test + y;

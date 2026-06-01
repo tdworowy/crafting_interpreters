@@ -1133,4 +1133,166 @@ mod tests {
         .to_string();
         assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
     }
+    #[test]
+    fn test_plus_equal() {
+        let mut vm = VM::new();
+        let source = r#"
+           var x = 10;
+           x += 2;
+           print x;
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+    #[test]
+    fn test_recursion() {
+        let mut vm = VM::new();
+        let source = r#"
+        fun test(i) {
+            if (i > 0) {
+                test(i - 1);
+                print i;
+              }
+        }
+        test(4);
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+    #[test]
+    fn test_class_methods() {
+        let mut vm = VM::new();
+        let source = r#"
+        class TestClass {
+                class doStaff() {
+                   print "class method";
+            }
+        }
+        TestClass.doStaff();
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+    #[test]
+    fn test_class1() {
+        let mut vm = VM::new();
+        let source = r#"
+        class TestClass {
+            doStaff() {
+                print "doing staff";
+                return "Done";
+            }
+        }
+        print TestClass;
+        var testObject = TestClass();
+        testObject.test = "test";
+        print testObject;
+        print testObject.test;
+        testObject.doStaff();
+        print testObject.doStaff();
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+    #[test]
+    fn test_class2() {
+        let mut vm = VM::new();
+        let source = r#"
+        class TestClass {
+                init(x) {
+                  this.test = x;
+                }
+                doStaff(y) {
+                   print this.test + y;
+            }
+        }
+        var obj = TestClass(2);
+        obj.doStaff(4);
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+    #[test]
+    fn test_class3() {
+        let mut vm = VM::new();
+        let source = r#"
+        class TestClass {
+                init(x) {
+                  print("in init");
+                  this.x = x;
+                }
+                doStaff() {
+                   print this.x;
+            }
+        }
+        var obj = TestClass("test");
+        obj.doStaff();
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+    #[test]
+    fn test_benchmark() {
+        let mut vm = VM::new();
+        let source = r#"
+        class zoo {
+            init() {
+                this.aardvark = 1;
+                this.baboon = 1;
+                this.cat = 1;
+                this.donkey = 1;
+                this.elephant = 1;
+                this.fox = 1;
+            }
+            ant() { return this.aardvark; }
+            banana() { return this.baboon; }
+            tuna() { return this.cat; }
+            hay() { return this.donkey; }
+            grass() { return this.elephant; }
+            moose() { return this.fox; }
+        }
+
+        var z = zoo();
+        var sum = 0;
+        var start = clock();
+        while (sum < 1000000) {
+            sum = sum + z.ant() + z.banana() + z.tuna() + z.hay() + z.grass() + z.moose();
+        }
+        print clock() - start;
+        print sum;
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+    #[test]
+    fn test_fib() {
+        let mut vm = VM::new();
+        let source = r#"
+        fun fib(n) {
+          if (n <= 1) return n;
+          return fib(n - 2) + fib(n - 1);
+        }
+
+        for (var i = 0; i < 26; i = i + 1) {
+          print fib(i);
+        }
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+    #[test]
+    fn test_while() {
+        let mut vm = VM::new();
+        let source = r#"
+        {
+            var i = 0;
+            while (i < 10) {
+                print i;
+                i = i +1;
+            }
+        }
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
 }
