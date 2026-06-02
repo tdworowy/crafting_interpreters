@@ -1017,7 +1017,7 @@ impl VM {
         let function_rc = Rc::new(function);
         let closure = Rc::new(RefCell::new(ObjClosure::new(function_rc.clone())));
         // Standard Lox: push closure first, then call.
-        // The script closure stays at stack[0] during entire execution.
+        // The script closure stays at stack[0] during the entire execution.
         self.push(Value::Obj(Rc::new(RefCell::new(Obj::Closure(
             (*closure.borrow()).clone(),
         )))));

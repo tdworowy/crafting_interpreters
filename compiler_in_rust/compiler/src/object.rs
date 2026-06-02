@@ -1,7 +1,7 @@
 use crate::chunks::Chunk;
 use crate::value::Value;
 use std::cell::RefCell;
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, ptr, rc::Rc};
 
 pub type NativeFn = fn(arg_count: usize, args: &[Value]) -> Value;
 
@@ -144,7 +144,7 @@ impl ObjString {
 
 /* ================== NATIVE ================== */
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct ObjNative {
     pub function: NativeFn,
 }
@@ -158,6 +158,13 @@ impl ObjNative {
         (self.function)(arg_count, args)
     }
 }
+
+impl PartialEq for ObjNative {
+    fn eq(&self, other: &Self) -> bool {
+        ptr::fn_addr_eq(self.function, other.function)
+    }
+}
+impl Eq for ObjNative {}
 
 /* ================== CLASS ================== */
 

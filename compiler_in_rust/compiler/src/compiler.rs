@@ -1122,14 +1122,14 @@ mod tests {
         let value = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
         let expected_chunk = Chunk {
             code: vec![
-                OpCode::Constant(0),
-                OpCode::DefineGlobal(1),
-                OpCode::GetGlobal(1),
-                OpCode::Add,
-                OpCode::Pop,
-                OpCode::Constant(2),
-                OpCode::Pop,
-                OpCode::GetGlobal(1),
+                OpCode::Constant(0),     // 10
+                OpCode::DefineGlobal(1), // x
+                OpCode::GetGlobal(1),    // x
+                OpCode::Constant(2),     // 2
+                OpCode::Add,             // x + 2
+                OpCode::SetGlobal(1),    // x = result
+                OpCode::Pop,             // assignment statement
+                OpCode::GetGlobal(1),    // x
                 OpCode::Print,
                 OpCode::Nil,
                 OpCode::Return,
