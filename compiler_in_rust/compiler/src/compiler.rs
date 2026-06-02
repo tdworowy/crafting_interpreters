@@ -9,6 +9,51 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+fn print_constants(constants: &Vec<Value>) {
+    for constant in constants.iter() {
+        constant.print()
+    }
+}
+pub fn assert_constants_eq(actual: &[Value], expected: &[Value]) {
+    assert_eq!(
+        actual.len(),
+        expected.len(),
+        "constant count differs: {} != {}",
+        actual.len(),
+        expected.len()
+    );
+
+    for (i, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
+        print!("actual: ");
+        a.print();
+        print!("expected: ");
+        e.print();
+        assert!(
+            values_equal(a, e),
+            "constant {} differs:\nactual:   {:?}\nexpected: {:?}",
+            i,
+            a,
+            e
+        );
+    }
+}
+
+fn values_equal(a: &Value, b: &Value) -> bool {
+    match (a, b) {
+        (Value::Bool(x), Value::Bool(y)) => x == y,
+        (Value::Nil, Value::Nil) => true,
+        (Value::Number(x), Value::Number(y)) => x == y,
+
+        (Value::Obj(x), Value::Obj(y)) => {
+            let x = x.borrow();
+            let y = y.borrow();
+            *x == *y
+        }
+
+        _ => false,
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 enum Precedence {
     PrecNone,
@@ -232,7 +277,7 @@ impl Compiler {
     }
     fn emit_jump(&mut self, instruction: fn(i16) -> OpCode) -> isize {
         self.emit_byte(instruction(0));
-        (self.current_chunk().count - 1)
+        self.current_chunk().count - 1
     }
     fn patch_jump(&mut self, jump_index: isize) {
         let offset = self.current_chunk().count - jump_index - 1;
@@ -314,7 +359,7 @@ impl Compiler {
     }
     fn parse_precedence(&mut self, precedence: Precedence) {
         self.advance();
-        let mut can_assign = precedence <= Precedence::PrecAssignment;
+        let can_assign = precedence <= Precedence::PrecAssignment;
         let prefix_rule = match get_rule(self.previous.token_type.clone()).prefix {
             Some(rule) => rule,
             _ => {
@@ -1043,7 +1088,7 @@ mod tests {
         let chunk = compiler.current_chunk();
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -1069,7 +1114,41 @@ mod tests {
         let chunk = compiler.current_chunk();
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
+    }
+    #[test]
+    fn test_plus_equal() {
+        let obj_string = ObjString::from_string("x".to_owned());
+        let value = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
+        let expected_chunk = Chunk {
+            code: vec![
+                OpCode::Constant(0),
+                OpCode::DefineGlobal(1),
+                OpCode::GetGlobal(1),
+                OpCode::Add,
+                OpCode::Pop,
+                OpCode::Constant(2),
+                OpCode::Pop,
+                OpCode::GetGlobal(1),
+                OpCode::Print,
+                OpCode::Nil,
+                OpCode::Return,
+            ],
+            lines: vec![1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3],
+            constants: vec![Value::Number(10f64), value, Value::Number(2f64)],
+            count: 6,
+        };
+
+        let source = r#"var x = 10;
+                            x += 2;
+                            print x;"#
+            .to_owned();
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+        assert_eq!(chunk.code, expected_chunk.code);
+        assert_eq!(chunk.lines, expected_chunk.lines);
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -1093,7 +1172,7 @@ mod tests {
         let chunk = compiler.current_chunk();
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -1123,7 +1202,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -1187,7 +1266,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -1230,7 +1309,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -1342,7 +1421,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
         let expected_chunk = Chunk {
             code: vec![
                 OpCode::Constant(0),
@@ -1385,7 +1464,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -1435,7 +1514,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -1484,7 +1563,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -1545,7 +1624,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -1638,7 +1717,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -1745,7 +1824,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -1824,7 +1903,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -1951,7 +2030,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -2034,7 +2113,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -2062,7 +2141,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -2089,7 +2168,7 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 
     #[test]
@@ -2220,6 +2299,6 @@ mod tests {
 
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
-        assert_eq!(chunk.constants.len(), expected_chunk.constants.len());
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
     }
 }

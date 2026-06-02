@@ -12,9 +12,7 @@ mod vm;
 fn main() -> std::io::Result<()> {
     let scripts_location = "/mnt/d/Projects/crafting_interpreters/compiler_in_rust/lox_scripts/";
     let mut vm = VM::new();
-    // let contents = fs::read_to_string(
-    //     scripts_location.to_owned() + "plus_equal.lox",
-    // )?; // OK
+    let contents = fs::read_to_string(scripts_location.to_owned() + "plus_equal.lox")?; //NOT  OK
     // let contents = fs::read_to_string(
     //     scripts_location.to_owned() + "2plus2.lox",
     // )?; // OK
@@ -78,7 +76,7 @@ fn main() -> std::io::Result<()> {
     // let contents = fs::read_to_string(
     //     scripts_location.to_owned() + "while_block.lox",
     // )?; // OK
-    let contents = fs::read_to_string(scripts_location.to_owned() + "recursion.lox")?; // OK
+    // let contents = fs::read_to_string(scripts_location.to_owned() + "recursion.lox")?; // OK
     // let contents = fs::read_to_string(
     //     scripts_location.to_owned() + "/test.lox",
     // )?; // OK
