@@ -1041,12 +1041,32 @@ mod tests {
     }
 
     #[test]
+    fn test_arithmetic2() {
+        let mut vm = VM::new();
+        let source = "1 + 2 + 3;".to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+
+    #[test]
     fn test_variables() {
         let mut vm = VM::new();
         let source = r#"
             var a = 1;
             var b = 2;
             var c = a + b;
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+
+    #[test]
+    fn test_variables2() {
+        let mut vm = VM::new();
+        let source = r#"
+            var a = 1;
+            var b = 2;
+            var c = a + b;
+            c = c + a + b;
         "#
         .to_string();
         assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
