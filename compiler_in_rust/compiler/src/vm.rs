@@ -90,6 +90,7 @@ impl VM {
         self.stack[index as usize].to_owned()
     }
     fn print_stack(&self) {
+        println!("Stack (top -> bottom)");
         for (i, v) in self.stack.iter().enumerate() {
             if i >= self.stack_top {
                 break;
@@ -98,6 +99,7 @@ impl VM {
             v.print();
             println!();
         }
+        println!("################");
     }
     fn reset_stack(&mut self) {
         self.stack_top = 0;
@@ -749,8 +751,9 @@ impl VM {
                                 Obj::Instance(instance) => {
                                     instance.fields.insert(name.data.clone(), value.clone());
 
-                                    self.pop(); // value
+                                    let value = self.pop(); // value
                                     self.pop(); // receiver
+                                    self.push(value);
                                 }
 
                                 _ => {
@@ -1322,17 +1325,17 @@ mod tests {
                             init() {
                               this.test1 = 1;
                               this.test2 = 2;
-                              this.test3 = 2;
+                              this.test3 = 3; // stack underflow
                             }
                             staff1() { return this.test1; }
                             staff2() { return this.test2; }
                             staff3() { return this.test3; }
                         }
-                      var obj = TestClass();
-                      var sum = 0;
-                      while (sum < 1000) {
-                        sum = sum + obj.staff1() + obj.staff2() + obj.staff3();
-                      }
+                     var obj = TestClass();
+                     var sum = 0;
+                     while (sum < 1000) {
+                       sum = sum + obj.staff1() + obj.staff2() + obj.staff3();
+                     }
                       print sum;"#
             .to_string();
         assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
@@ -1383,9 +1386,9 @@ mod tests {
                 this.aardvark = 1;
                 this.baboon = 1;
                 this.cat = 1;
-                // this.donkey = 1;
-                // this.elephant = 1;
-                // this.fox = 1;
+                this.donkey = 1;
+                this.elephant = 1;
+                this.fox = 1;
             }
             ant() { return this.aardvark; }
             banana() { return this.baboon; }

@@ -1821,6 +1821,87 @@ mod tests {
     }
 
     #[test]
+    fn test_class4() {
+        // init() { this.test1=1; this.test2=2; this.test3=2; }
+        let expected_init_chunk = Chunk {
+            count: 11,
+            code: vec![
+                OpCode::Constant(0),
+                OpCode::SetProperty(1),
+                OpCode::Pop,
+                OpCode::Constant(2),
+                OpCode::SetProperty(3),
+                OpCode::Pop,
+                OpCode::Constant(2),
+                OpCode::SetProperty(4),
+                OpCode::Pop,
+                OpCode::GetLocal(0),
+                OpCode::Return,
+            ],
+            lines: vec![3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4],
+            constants: vec![
+                Value::Number(1f64),
+                Value::Obj(Rc::new(RefCell::new(Obj::String(ObjString::from_string(
+                    "test1".to_owned(),
+                ))))),
+                Value::Number(2f64),
+                Value::Obj(Rc::new(RefCell::new(Obj::String(ObjString::from_string(
+                    "test2".to_owned(),
+                ))))),
+                Value::Obj(Rc::new(RefCell::new(Obj::String(ObjString::from_string(
+                    "test3".to_owned(),
+                ))))),
+            ],
+        };
+
+        let mut expected_init_fn = ObjFunction::new();
+        expected_init_fn.name = "init".to_owned();
+        expected_init_fn.arity = 0;
+        expected_init_fn.chunk = expected_init_chunk;
+
+        let obj_string_class = ObjString::from_string("TestClass".to_owned());
+        let value_class = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_class))));
+
+        let value_init_name = Value::Obj(Rc::new(RefCell::new(Obj::String(
+            ObjString::from_string("init".to_owned()),
+        ))));
+
+        let value_init = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_init_fn))));
+
+        let expected_chunk = Chunk {
+            code: vec![
+                OpCode::Class(0),
+                OpCode::DefineGlobal(0),
+                OpCode::GetGlobal(0),
+                OpCode::Closure(2),
+                OpCode::Method(1),
+                OpCode::Pop,
+                OpCode::Nil,
+                OpCode::Return,
+            ],
+            lines: vec![1, 1, 1, 6, 6, 6, 6, 6],
+            constants: vec![value_class, value_init_name, value_init],
+            count: 8,
+        };
+
+        let source = r#"class TestClass {
+                        init() {
+                          this.test1 = 1;
+                          this.test2 = 2;
+                          this.test3 = 2;
+                        }"#
+        .to_owned();
+
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+
+        assert_eq!(chunk.code, expected_chunk.code);
+        assert_eq!(chunk.lines, expected_chunk.lines);
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
+    }
+
+    #[test]
     fn test_while() {
         let obj_string = ObjString::from_string("i".to_owned());
         let value = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));

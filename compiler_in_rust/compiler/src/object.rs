@@ -23,7 +23,7 @@ impl Obj {
     pub fn print(&self) {
         match self {
             Obj::String(s) => print!("{}", s.data),
-            Obj::Function(_) => print!("<fn>"),
+            Obj::Function(f) => print!("<fn>{}<fn>", f.name),
             Obj::Closure(_) => print!("<closure>"),
             Obj::Native(_) => print!("<native fn>"),
             Obj::Upvalue(_) => print!("<upvalue>"),

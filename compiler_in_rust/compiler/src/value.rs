@@ -103,17 +103,7 @@ impl Value {
             Value::Number(n) => println!("{n}"),
             Value::Obj(obj) => {
                 let obj = obj.borrow();
-                match &*obj {
-                    Obj::String(s) => println!("<string>{}<string>", &s.data),
-                    Obj::Closure(_) => println!("<closure>"),
-                    Obj::Function(fun) => println!("<function>{:?}<function>", fun.name),
-                    Obj::Native(_) => println!("<native fn>"),
-                    Obj::Class(klass) => println!("<class>{:?}<class>", klass.name),
-                    Obj::BoundMethod(_) => println!("<bound method>"),
-                    _ => {
-                        println!("<unknown>");
-                    }
-                }
+                obj.print();
             }
         }
     }
