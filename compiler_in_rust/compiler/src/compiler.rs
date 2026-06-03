@@ -1499,42 +1499,318 @@ mod tests {
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
         assert_constants_eq(&chunk.constants, &expected_chunk.constants);
+    }
+    #[test]
+    fn test_class2() {
+        let obj_string = ObjString::from_string("test".to_owned());
+        let value = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
+
+        // init(x)
+        let expected_init_chunk = Chunk {
+            count: 5,
+            code: vec![
+                OpCode::GetLocal(1),
+                OpCode::SetProperty(0),
+                OpCode::Pop,
+                OpCode::GetLocal(0),
+                OpCode::Return,
+            ],
+            lines: vec![3, 3, 3, 4, 4],
+            constants: vec![value.clone()],
+        };
+
+        let mut expected_init_fn = ObjFunction::new();
+        expected_init_fn.name = "init".to_owned();
+        expected_init_fn.arity = 1;
+        expected_init_fn.upvalue_count = 0;
+        expected_init_fn.chunk = expected_init_chunk;
+
+        // doStaff(y) { return this.test + y; }
+        let expected_do_staff_chunk = Chunk {
+            count: 4,
+            code: vec![
+                OpCode::GetProperty(0),
+                OpCode::GetLocal(1),
+                OpCode::Add,
+                OpCode::Return,
+            ],
+            lines: vec![6, 6, 6, 6],
+            constants: vec![value],
+        };
+
+        let mut expected_do_staff_fn = ObjFunction::new();
+        expected_do_staff_fn.name = "doStaff".to_owned();
+        expected_do_staff_fn.arity = 1;
+        expected_do_staff_fn.upvalue_count = 0;
+        expected_do_staff_fn.chunk = expected_do_staff_chunk;
+
+        let obj_string_class = ObjString::from_string("TestClass".to_owned());
+        let value_class = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_class))));
+        let obj_init = ObjString::from_string("init".to_owned());
+        let value_init = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_init))));
+        let obj_method = ObjString::from_string("doStaff".to_owned());
+        let value_method = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_method))));
+        let obj_obj = ObjString::from_string("obj".to_owned());
+        let value_obj = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_obj))));
+        let obj_sum = ObjString::from_string("sum".to_owned());
+        let value_sum = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_sum))));
+
+        let value_function_init =
+            Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_init_fn))));
+        let value_function_do_staff =
+            Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_do_staff_fn))));
+
         let expected_chunk = Chunk {
             code: vec![
-                OpCode::Constant(0),
-                OpCode::GetLocal(1),
-                OpCode::Constant(1),
+                OpCode::Class(0),
+                OpCode::DefineGlobal(0),
+                OpCode::GetGlobal(0),
+                OpCode::Closure(2),
+                OpCode::Method(1),
+                OpCode::Closure(4),
+                OpCode::Method(3),
+                OpCode::Pop,
+                OpCode::GetGlobal(0),
+                OpCode::Constant(5),
+                OpCode::Call(1),
+                OpCode::DefineGlobal(6),
+                OpCode::Constant(7),
+                OpCode::DefineGlobal(8),
+                OpCode::GetGlobal(8),
+                OpCode::Constant(9),
                 OpCode::Less,
-                OpCode::JumpIfFalse(11),
+                OpCode::JumpIfFalse(9),
                 OpCode::Pop,
-                OpCode::Jump(6),
-                OpCode::GetLocal(1),
-                OpCode::Constant(2),
+                OpCode::GetGlobal(8),
+                OpCode::GetGlobal(6),
+                OpCode::Constant(10),
+                OpCode::Invoke(3, 1),
                 OpCode::Add,
-                OpCode::SetLocal(1),
+                OpCode::SetGlobal(8),
                 OpCode::Pop,
-                OpCode::Loop(12),
-                OpCode::GetLocal(1),
+                OpCode::Loop(13),
+                OpCode::Pop,
+                OpCode::GetGlobal(8),
                 OpCode::Print,
-                OpCode::Loop(9),
-                OpCode::Pop,
-                OpCode::Pop,
                 OpCode::Nil,
                 OpCode::Return,
             ],
-            lines: vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3, 3, 3, 3, 3],
-            constants: vec![
-                Value::Number(1f64),
-                Value::Number(5f64),
-                Value::Number(1f64),
+            lines: vec![
+                1, 1, 1, 4, 4, 7, 7, 8, 9, 9, 9, 9, 10, 10, 11, 11, 11, 11, 11, 12, 12, 12, 12, 12,
+                12, 12, 13, 13, 14, 14, 14, 14,
             ],
-            count: 20,
+            constants: vec![
+                value_class,             // 0: "TestClass"
+                value_init,              // 1: "init"
+                value_function_init,     // 2: init fn
+                value_method,            // 3: "doStaff"
+                value_function_do_staff, // 4: doStaff fn
+                Value::Number(2f64),     // 5: 2
+                value_obj,               // 6: "obj"
+                Value::Number(0f64),     // 7: 0
+                value_sum,               // 8: "sum"
+                Value::Number(1000f64),  // 9: 1000
+                Value::Number(4f64),     // 10: 4
+            ],
+            count: 32,
         };
 
-        let source = r#"for (var i = 1; i < 5; i = i + 1) {
-                             print i;
-                            }"#
-        .to_owned();
+        let source = r#"class TestClass {
+                                init(x) {
+                                  this.test=x;
+                                }
+                                doStaff(y) {
+                                  return this.test + y;
+                                }
+                            }
+                          var obj = TestClass(2);
+                          var sum = 0;
+                          while (sum < 1000) {
+                            sum = sum + obj.doStaff(4);
+                          }
+                          print sum;"#
+            .to_owned();
+
+        let mut compiler = Compiler::new(None, FunctionType::TypeScript);
+        compiler.compile(source);
+        let chunk = compiler.current_chunk();
+
+        assert_eq!(chunk.code, expected_chunk.code);
+        assert_eq!(chunk.lines, expected_chunk.lines);
+        assert_constants_eq(&chunk.constants, &expected_chunk.constants);
+    }
+
+    #[test]
+    fn test_class3() {
+        let obj_string = ObjString::from_string("test".to_owned());
+        let value = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
+
+        // init() { this.test1=1; this.test2=2; this.test3=2; }
+        let expected_init_chunk = Chunk {
+            count: 11,
+            code: vec![
+                OpCode::Constant(0),
+                OpCode::SetProperty(1),
+                OpCode::Pop,
+                OpCode::Constant(2),
+                OpCode::SetProperty(3),
+                OpCode::Pop,
+                OpCode::Constant(2),
+                OpCode::SetProperty(4),
+                OpCode::Pop,
+                OpCode::GetLocal(0),
+                OpCode::Return,
+            ],
+            lines: vec![3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4],
+            constants: vec![
+                Value::Number(1f64),
+                Value::Obj(Rc::new(RefCell::new(Obj::String(ObjString::from_string(
+                    "test1".to_owned(),
+                ))))),
+                Value::Number(2f64),
+                Value::Obj(Rc::new(RefCell::new(Obj::String(ObjString::from_string(
+                    "test2".to_owned(),
+                ))))),
+                Value::Obj(Rc::new(RefCell::new(Obj::String(ObjString::from_string(
+                    "test3".to_owned(),
+                ))))),
+            ],
+        };
+
+        let mut expected_init_fn = ObjFunction::new();
+        expected_init_fn.name = "init".to_owned();
+        expected_init_fn.arity = 0;
+        expected_init_fn.chunk = expected_init_chunk;
+
+        // staff1, staff2, staff3 — all simple getters
+        let make_staff = |name: &str, prop: &str| {
+            let mut f = ObjFunction::new();
+            f.name = name.to_owned();
+            f.arity = 0;
+            f.chunk = Chunk {
+                count: 2,
+                code: vec![OpCode::GetProperty(0), OpCode::Return],
+                lines: vec![0, 0],
+                constants: vec![Value::Obj(Rc::new(RefCell::new(Obj::String(
+                    ObjString::from_string(prop.to_owned()),
+                ))))],
+            };
+            f
+        };
+
+        let expected_staff1_fn = make_staff("staff1", "test1");
+        let expected_staff2_fn = make_staff("staff2", "test2");
+        let expected_staff3_fn = make_staff("staff3", "test3");
+
+        let obj_string_class = ObjString::from_string("TestClass".to_owned());
+        let value_class = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string_class))));
+        let value_init_name = Value::Obj(Rc::new(RefCell::new(Obj::String(
+            ObjString::from_string("init".to_owned()),
+        ))));
+        let value_staff1_name = Value::Obj(Rc::new(RefCell::new(Obj::String(
+            ObjString::from_string("staff1".to_owned()),
+        ))));
+        let value_staff2_name = Value::Obj(Rc::new(RefCell::new(Obj::String(
+            ObjString::from_string("staff2".to_owned()),
+        ))));
+        let value_staff3_name = Value::Obj(Rc::new(RefCell::new(Obj::String(
+            ObjString::from_string("staff3".to_owned()),
+        ))));
+        let value_obj_name = Value::Obj(Rc::new(RefCell::new(Obj::String(
+            ObjString::from_string("obj".to_owned()),
+        ))));
+        let value_sum_name = Value::Obj(Rc::new(RefCell::new(Obj::String(
+            ObjString::from_string("sum".to_owned()),
+        ))));
+
+        let value_init = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_init_fn))));
+        let value_staff1 = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_staff1_fn))));
+        let value_staff2 = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_staff2_fn))));
+        let value_staff3 = Value::Obj(Rc::new(RefCell::new(Obj::Function(expected_staff3_fn))));
+
+        let expected_chunk = Chunk {
+            code: vec![
+                OpCode::Class(0),
+                OpCode::DefineGlobal(0),
+                OpCode::GetGlobal(0),
+                OpCode::Closure(2),
+                OpCode::Method(1),
+                OpCode::Closure(4),
+                OpCode::Method(3),
+                OpCode::Closure(6),
+                OpCode::Method(5),
+                OpCode::Closure(8),
+                OpCode::Method(7),
+                OpCode::Pop,
+                OpCode::GetGlobal(0),
+                OpCode::Call(0),
+                OpCode::DefineGlobal(9),
+                OpCode::Constant(10),
+                OpCode::DefineGlobal(11),
+                OpCode::GetGlobal(11),
+                OpCode::Constant(12),
+                OpCode::Less,
+                OpCode::JumpIfFalse(14),
+                OpCode::Pop,
+                OpCode::GetGlobal(11),
+                OpCode::GetGlobal(9),
+                OpCode::Invoke(3, 0), // staff1
+                OpCode::Add,
+                OpCode::GetGlobal(9),
+                OpCode::Invoke(5, 0), // staff2
+                OpCode::Add,
+                OpCode::GetGlobal(9),
+                OpCode::Invoke(7, 0), // staff3
+                OpCode::Add,
+                OpCode::SetGlobal(11),
+                OpCode::Pop,
+                OpCode::Loop(18),
+                OpCode::Pop,
+                OpCode::GetGlobal(11),
+                OpCode::Print,
+                OpCode::Nil,
+                OpCode::Return,
+            ],
+            lines: vec![
+                1, 1, 1, 6, 6, 7, 7, 8, 8, 9, 9, 10, 11, 11, 11, 12, 12, 13, 13, 13, 13, 13, 14,
+                14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 16, 16, 16, 16,
+            ],
+            constants: vec![
+                value_class,
+                value_init_name,
+                value_init,
+                value_staff1_name,
+                value_staff1,
+                value_staff2_name,
+                value_staff2,
+                value_staff3_name,
+                value_staff3,
+                value_obj_name,
+                Value::Number(0f64),
+                value_sum_name,
+                Value::Number(1000f64),
+            ],
+            count: 37,
+        };
+
+        let source = r#"class TestClass {
+                            init() {
+                              this.test1 = 1;
+                              this.test2 = 2;
+                              this.test3 = 2;
+                            }
+                            staff1() { return this.test1; }
+                            staff2() { return this.test2; }
+                            staff3() { return this.test3; }
+                        }
+                      var obj = TestClass();
+                      var sum = 0;
+                      while (sum < 1000) {
+                        sum = sum + obj.staff1() + obj.staff2() + obj.staff3();
+                      }
+                      print sum;"#
+            .to_owned();
+
         let mut compiler = Compiler::new(None, FunctionType::TypeScript);
         compiler.compile(source);
         let chunk = compiler.current_chunk();

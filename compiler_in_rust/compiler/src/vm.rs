@@ -1232,6 +1232,92 @@ mod tests {
         assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
     }
     #[test]
+    fn test_class4() {
+        let mut vm = VM::new();
+        let source = r#"class TestClass {
+                                init(x) {
+                                  this.test = x;
+                                }
+                                doStaff(y) {
+                                  return this.test + y;
+                                }
+                            }
+                          var obj = TestClass(2);
+                          var sum = 0;
+                          while (sum < 1000) {
+                            sum = sum + obj.doStaff(4) + obj.doStaff(4);
+                          }
+                          print sum;"#
+            .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+    #[test]
+    fn test_class5() {
+        let mut vm = VM::new();
+        let source = r#"class TestClass {
+                                init() {
+                                  this.test = 5;
+                                }
+                                doStaff() {
+                                  return this.test;
+                                }
+                            }
+                          var obj = TestClass();
+                          var sum = 0;
+                          while (sum < 1000) {
+                            sum = sum + obj.doStaff() + obj.doStaff();
+                          }
+                          print sum;"#
+            .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+    #[test]
+    fn test_class6() {
+        let mut vm = VM::new();
+        let source = r#"class TestClass {
+                                init() {
+                                  this.test1 = 5;
+                                  this.test2 = 4;
+                                }
+                                doStaff1() {
+                                  return this.test1;
+                                }
+                                doStaff2() {
+                                  return this.test2;
+                                }
+                            }
+                          var o = TestClass();
+                          var sum = 0;
+                          while (sum < 1000) {
+                            sum = sum + o.doStaff1() + o.doStaff2();
+                          }
+                          print sum;"#
+            .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+    #[test]
+    fn test_class7() {
+        let mut vm = VM::new();
+        let source = r#"class TestClass {
+                            init() {
+                              this.test1 = 1;
+                              this.test2 = 2;
+                              this.test3 = 2;
+                            }
+                            staff1() { return this.test1; }
+                            staff2() { return this.test2; }
+                            staff3() { return this.test3; }
+                        }
+                      var obj = TestClass();
+                      var sum = 0;
+                      while (sum < 1000) {
+                        sum = sum + obj.staff1() + obj.staff2() + obj.staff3();
+                      }
+                      print sum;"#
+            .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+    #[test]
     fn test_native() {
         let mut vm = VM::new();
         let source = r#"
@@ -1247,6 +1333,28 @@ mod tests {
         assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
     }
     #[test]
+    fn test_native2() {
+        let mut vm = VM::new();
+        let source = r#"class TestClass {
+                                init(x) {
+                                  this.test=x;
+                                }
+                                doStaff(y) {
+                                  return this.test + y;
+                                }
+                            }
+                          var obj = TestClass(2);
+                          var sum = 0;
+                          var start = clock();
+                          while (sum < 1000) {
+                            sum = sum + obj.doStaff(4);
+                          }
+                          print clock() - start;
+                          print sum;"#
+            .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+    #[test]
     fn test_benchmark() {
         let mut vm = VM::new();
         let source = r#"
@@ -1255,9 +1363,9 @@ mod tests {
                 this.aardvark = 1;
                 this.baboon = 1;
                 this.cat = 1;
-                this.donkey = 1;
-                this.elephant = 1;
-                this.fox = 1;
+                // this.donkey = 1;
+                // this.elephant = 1;
+                // this.fox = 1;
             }
             ant() { return this.aardvark; }
             banana() { return this.baboon; }
@@ -1269,8 +1377,8 @@ mod tests {
 
         var z = zoo();
         var sum = 0;
-        var start = clock();
-        while (sum < 1000000) {
+       var start = clock();
+        while (sum < 1099900) {
             sum = sum + z.ant() + z.banana() + z.tuna() + z.hay() + z.grass() + z.moose();
         }
         print clock() - start;
