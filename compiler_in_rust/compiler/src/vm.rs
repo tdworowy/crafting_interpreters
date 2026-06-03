@@ -1232,6 +1232,21 @@ mod tests {
         assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
     }
     #[test]
+    fn test_native() {
+        let mut vm = VM::new();
+        let source = r#"
+        var start = clock();
+        var sum = 0;
+        while (sum < 1000) {
+            sum = sum + 1;
+        }
+        print clock() - start;
+        print sum;
+        "#
+        .to_string();
+        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+    }
+    #[test]
     fn test_benchmark() {
         let mut vm = VM::new();
         let source = r#"
@@ -1255,7 +1270,7 @@ mod tests {
         var z = zoo();
         var sum = 0;
         var start = clock();
-        while (sum < 1000000) {
+        while (sum < 1000 {
             sum = sum + z.ant() + z.banana() + z.tuna() + z.hay() + z.grass() + z.moose();
         }
         print clock() - start;

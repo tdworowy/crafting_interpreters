@@ -41,6 +41,10 @@ pub enum TokenType {
     TokenError,
     TokenSynthetic,
     TokenEof,
+    TokenPlusEqual,
+    TokenMinusEqual,
+    TokenStarEqual,
+    TokenSlashEqual,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -274,11 +278,35 @@ impl Scanner {
                 '}' => self.make_token(TokenType::TokenRightBrace),
                 ',' => self.make_token(TokenType::TokenComma),
                 '.' => self.make_token(TokenType::TokenDot),
-                '-' => self.make_token(TokenType::TokenMinus),
-                '+' => self.make_token(TokenType::TokenPlus),
+                '-' => {
+                    if self.match_char('=') {
+                        self.make_token(TokenType::TokenMinusEqual)
+                    } else {
+                        self.make_token(TokenType::TokenMinus)
+                    }
+                }
+                '+' => {
+                    if self.match_char('=') {
+                        self.make_token(TokenType::TokenPlusEqual)
+                    } else {
+                        self.make_token(TokenType::TokenPlus)
+                    }
+                }
                 ';' => self.make_token(TokenType::TokenSemicolon),
-                '/' => self.make_token(TokenType::TokenSlash),
-                '*' => self.make_token(TokenType::TokenStar),
+                '/' => {
+                    if self.match_char('=') {
+                        self.make_token(TokenType::TokenSlashEqual)
+                    } else {
+                        self.make_token(TokenType::TokenSlash)
+                    }
+                }
+                '*' => {
+                    if self.match_char('=') {
+                        self.make_token(TokenType::TokenStarEqual)
+                    } else {
+                        self.make_token(TokenType::TokenStar)
+                    }
+                }
                 '!' => {
                     if self.match_char('=') {
                         self.make_token(TokenType::TokenBangEqual)
@@ -538,5 +566,40 @@ mod tests {
         assert!(types.contains(&TokenType::TokenIf));
         assert!(types.contains(&TokenType::TokenEqualEqual));
         assert_eq!(*types.last().unwrap(), TokenType::TokenEof);
+    }
+    #[test]
+    fn test_compound_assignment_tokens() {
+        let source = "x += 2; y -= 3; z *= 4; w /= 5;".to_owned();
+        let tokens = scan(source);
+        let types = token_types(&tokens);
+        let lexemes = lexemes(&tokens);
+
+        let expected_types = vec![
+            TokenType::TokenIdentifier, // x
+            TokenType::TokenPlusEqual,  // +=
+            TokenType::TokenNumber,     // 2
+            TokenType::TokenSemicolon,
+            TokenType::TokenIdentifier, // y
+            TokenType::TokenMinusEqual, // -=
+            TokenType::TokenNumber,     // 3
+            TokenType::TokenSemicolon,
+            TokenType::TokenIdentifier, // z
+            TokenType::TokenStarEqual,  // *=
+            TokenType::TokenNumber,     // 4
+            TokenType::TokenSemicolon,
+            TokenType::TokenIdentifier, // w
+            TokenType::TokenSlashEqual, // /=
+            TokenType::TokenNumber,     // 5
+            TokenType::TokenSemicolon,
+            TokenType::TokenEof,
+        ];
+
+        assert_eq!(types, expected_types);
+
+        // Optional: check lexemes for compound operators
+        assert_eq!(lexemes[1], "+=");
+        assert_eq!(lexemes[5], "-=");
+        assert_eq!(lexemes[9], "*=");
+        assert_eq!(lexemes[13], "/=");
     }
 }

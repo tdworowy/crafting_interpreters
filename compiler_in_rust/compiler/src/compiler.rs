@@ -42,12 +42,51 @@ fn values_equal(a: &Value, b: &Value) -> bool {
     match (a, b) {
         (Value::Bool(x), Value::Bool(y)) => x == y,
         (Value::Nil, Value::Nil) => true,
-        (Value::Number(x), Value::Number(y)) => x == y,
+        (Value::Number(x), Value::Number(y)) => (x - y).abs() < f64::EPSILON, // safer for floats
 
         (Value::Obj(x), Value::Obj(y)) => {
-            let x = x.borrow();
-            let y = y.borrow();
-            *x == *y
+            let x_obj = x.borrow();
+            let y_obj = y.borrow();
+
+            match (&*x_obj, &*y_obj) {
+                // String: compare by value (most important)
+                (Obj::String(s1), Obj::String(s2)) => s1.data == s2.data,
+
+                // Function / Closure: reference equality (same object)
+                // Functions: compare by reference (Rc)
+                (Obj::Function(f1), Obj::Function(f2)) => {
+                    // Since ObjFunction is stored directly, we compare the whole struct
+                    // (name + chunk is usually enough, but we can make it stricter)
+                    f1.name == f2.name && f1.arity == f2.arity
+                }
+
+                // Closures: compare the underlying function by pointer
+                (Obj::Closure(c1), Obj::Closure(c2)) => Rc::ptr_eq(&c1.function, &c2.function),
+
+                // Class: compare by name + methods (or reference)
+                (Obj::Class(c1), Obj::Class(c2)) => Rc::ptr_eq(c1, c2),
+
+                // Instance: compare class + fields
+                (Obj::Instance(i1), Obj::Instance(i2)) => {
+                    Rc::ptr_eq(&i1.klass, &i2.klass) && i1.fields == i2.fields
+                }
+
+                // Bound Method
+                (Obj::BoundMethod(m1), Obj::BoundMethod(m2)) => {
+                    values_equal(&m1.receiver, &m2.receiver) && Rc::ptr_eq(&m1.method, &m2.method)
+                }
+
+                // Native functions: compare by pointer
+                (Obj::Native(n1), Obj::Native(n2)) => n1 == n2,
+
+                // Upvalue
+                (Obj::Upvalue(u1), Obj::Upvalue(u2)) => {
+                    u1.closed == u2.closed && u1.location == u2.location
+                }
+
+                // Different types
+                _ => false,
+            }
         }
 
         _ => false,
@@ -138,7 +177,10 @@ lazy_static::lazy_static! {
         m.insert(TokenType::TokenWhile,         ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
         m.insert(TokenType::TokenError,         ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
         m.insert(TokenType::TokenEof,           ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecNone });
-
+        m.insert(TokenType::TokenPlusEqual,     ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecAssignment });
+        m.insert(TokenType::TokenMinusEqual,    ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecAssignment });
+        m.insert(TokenType::TokenStarEqual,     ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecAssignment });
+        m.insert(TokenType::TokenSlashEqual,    ParseRule { prefix: None,                          infix: None,                        precedence: Precedence::PrecAssignment });
         m
     };
 }
@@ -394,9 +436,6 @@ impl Compiler {
                 _ => self.error("Incorrect infix rule".to_owned()),
             }
         }
-        if can_assign && self.match_token(TokenType::TokenEqual) {
-            self.error("Invalid assigment target.".to_owned());
-        }
     }
     fn string(&mut self, can_assign: bool) {
         let value = self.previous.lexeme.clone().replace("\"", "");
@@ -535,30 +574,59 @@ impl Compiler {
         }
     }
     fn named_variable(&mut self, name: Token, can_assign: bool) {
-        let (get_op, set_op, arg) = {
+        let (get_op, set_op) = {
             let local = self.resolve_local(name.clone());
             if local != -1 {
-                (OpCode::GetLocal(local), OpCode::SetLocal(local), local)
+                (OpCode::GetLocal(local), OpCode::SetLocal(local))
             } else {
                 let upvalue = self.resolve_upvalue(name.clone());
                 if upvalue != -1 {
-                    (
-                        OpCode::GetUpvalue(upvalue),
-                        OpCode::SetUpvalue(upvalue),
-                        upvalue,
-                    )
+                    (OpCode::GetUpvalue(upvalue), OpCode::SetUpvalue(upvalue))
                 } else {
                     let global = self.identifier_constant_once(&name);
-                    (OpCode::GetGlobal(global), OpCode::SetGlobal(global), global)
+                    (OpCode::GetGlobal(global), OpCode::SetGlobal(global))
                 }
             }
         };
 
-        if can_assign && self.match_token(TokenType::TokenEqual) {
-            self.expression();
-            self.emit_byte(set_op);
-        } else {
+        if !can_assign {
             self.emit_byte(get_op);
+            return;
+        }
+
+        match self.current.token_type {
+            // Normal assignment: x = 42
+            TokenType::TokenEqual => {
+                self.advance();
+                self.expression();
+                self.emit_byte(set_op);
+            }
+
+            // Compound assignments: x += 2, x -= 3, etc.
+            TokenType::TokenPlusEqual => {
+                self.advance();
+                self.compound_assignment(get_op.clone(), set_op.clone(), OpCode::Add);
+            }
+
+            TokenType::TokenMinusEqual => {
+                self.advance();
+                self.compound_assignment(get_op.clone(), set_op.clone(), OpCode::Subtract);
+            }
+
+            TokenType::TokenStarEqual => {
+                self.advance();
+                self.compound_assignment(get_op.clone(), set_op.clone(), OpCode::Multiply);
+            }
+
+            TokenType::TokenSlashEqual => {
+                self.advance();
+                self.compound_assignment(get_op.clone(), set_op.clone(), OpCode::Divide);
+            }
+
+            _ => {
+                // Just a variable reference (e.g. in print x)
+                self.emit_byte(get_op);
+            }
         }
     }
     fn synthetic_token(&self, text: String) -> Token {
@@ -640,6 +708,12 @@ impl Compiler {
             TokenType::TokenSlash => self.emit_byte(OpCode::Divide),
             _ => {}
         }
+    }
+    fn compound_assignment(&mut self, get_op: OpCode, set_op: OpCode, op: OpCode) {
+        self.emit_byte(get_op);
+        self.expression(); // parse right-hand side
+        self.emit_byte(op); // perform the compound operation (+, -, *, /)
+        self.emit_byte(set_op); // assign back (SetLocal / SetGlobal / SetUpvalue)
     }
     fn synchronize(&mut self) {
         self.panic_mode = false;
@@ -1119,33 +1193,36 @@ mod tests {
     #[test]
     fn test_plus_equal() {
         let obj_string = ObjString::from_string("x".to_owned());
-        let value = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
+        let value_x = Value::Obj(Rc::new(RefCell::new(Obj::String(obj_string))));
+
         let expected_chunk = Chunk {
             code: vec![
                 OpCode::Constant(0),     // 10
-                OpCode::DefineGlobal(1), // x
-                OpCode::GetGlobal(1),    // x
+                OpCode::DefineGlobal(1), // var x = 10;
+                OpCode::GetGlobal(1),    // x (for +=)
                 OpCode::Constant(2),     // 2
                 OpCode::Add,             // x + 2
-                OpCode::SetGlobal(1),    // x = result
-                OpCode::Pop,             // assignment statement
-                OpCode::GetGlobal(1),    // x
+                OpCode::SetGlobal(1),    // x = ...
+                OpCode::Pop,             // pop assignment result
+                OpCode::GetGlobal(1),    // x (for print)
                 OpCode::Print,
                 OpCode::Nil,
                 OpCode::Return,
             ],
             lines: vec![1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3],
-            constants: vec![Value::Number(10f64), value, Value::Number(2f64)],
-            count: 6,
+            constants: vec![Value::Number(10f64), value_x, Value::Number(2f64)],
+            count: 11, // ← Fixed
         };
 
         let source = r#"var x = 10;
-                            x += 2;
-                            print x;"#
+                    x += 2;
+                    print x;"#
             .to_owned();
+
         let mut compiler = Compiler::new(None, FunctionType::TypeScript);
         compiler.compile(source);
         let chunk = compiler.current_chunk();
+
         assert_eq!(chunk.code, expected_chunk.code);
         assert_eq!(chunk.lines, expected_chunk.lines);
         assert_constants_eq(&chunk.constants, &expected_chunk.constants);
