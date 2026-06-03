@@ -595,8 +595,6 @@ mod tests {
         ];
 
         assert_eq!(types, expected_types);
-
-        // Optional: check lexemes for compound operators
         assert_eq!(lexemes[1], "+=");
         assert_eq!(lexemes[5], "-=");
         assert_eq!(lexemes[9], "*=");
