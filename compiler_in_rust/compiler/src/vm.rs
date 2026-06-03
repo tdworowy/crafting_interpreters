@@ -1270,7 +1270,7 @@ mod tests {
         var z = zoo();
         var sum = 0;
         var start = clock();
-        while (sum < 1000000 {
+        while (sum < 1000000) {
             sum = sum + z.ant() + z.banana() + z.tuna() + z.hay() + z.grass() + z.moose();
         }
         print clock() - start;
