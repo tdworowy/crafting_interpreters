@@ -16,7 +16,7 @@ fn main() -> std::io::Result<()> {
     // let contents = fs::read_to_string(
     //     scripts_location.to_owned() + "2plus2.lox",
     // )?; // OK
-    let contents = fs::read_to_string(scripts_location.to_owned() + "benchmark.lox")?; // OK
+    //  let contents = fs::read_to_string(scripts_location.to_owned() + "benchmark.lox")?; // OK
     // let contents = fs::read_to_string(
     //     scripts_location.to_owned() + "block1.lox",
     // )?; // OK
@@ -35,9 +35,7 @@ fn main() -> std::io::Result<()> {
     // let contents = fs::read_to_string(
     //     scripts_location.to_owned() + "class_3.lox",
     // )?; // OK
-    // let contents = fs::read_to_string(
-    //     scripts_location.to_owned() + "class_4.lox",
-    // )?; // NOT OK Class methods don't work
+    let contents = fs::read_to_string(scripts_location.to_owned() + "class_4.lox")?; // OK
     // let contents = fs::read_to_string(
     //     scripts_location.to_owned() + "class_5.lox",
     // )?; // OK

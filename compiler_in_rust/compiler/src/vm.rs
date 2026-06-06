@@ -847,9 +847,24 @@ impl VM {
                                         return InterpretResult::InterpretRuntimeError;
                                     }
                                 }
+                                Obj::Class(klass) => {
+                                    if let Some(value) = klass.methods.get(&name.data) {
+                                        let value = value.clone();
 
+                                        let slot = self.stack_top - 1 - arg_count as usize;
+                                        self.stack[slot] = value.clone();
+
+                                        if !self.call_value(value, arg_count as usize) {
+                                            return InterpretResult::InterpretRuntimeError;
+                                        }
+
+                                        continue;
+                                    }
+                                }
                                 _ => {
-                                    self.runtime_error("Only instances have methods.".to_string());
+                                    self.runtime_error(
+                                        "Only instances and Classes have methods.".to_string(),
+                                    );
 
                                     return InterpretResult::InterpretRuntimeError;
                                 }
@@ -1035,65 +1050,30 @@ impl VM {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_arithmetic() {
-        let mut vm = VM::new();
-        let source = "1 + 2 * 3;".to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-
-    #[test]
-    fn test_arithmetic2() {
-        let mut vm = VM::new();
-        let source = "1 + 2 + 3;".to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-
-    #[test]
-    fn test_variables() {
-        let mut vm = VM::new();
-        let source = r#"
+    use rstest::rstest;
+    static SOURCE_ARITHMETIC1: &str = "1 + 2 * 3;";
+    static SOURCE_ARITHMETIC2: &str = "1 + 2 + 3;";
+    static SOURCE_VARIABLES1: &str = r#"
             var a = 1;
             var b = 2;
             var c = a + b;
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-
-    #[test]
-    fn test_variables2() {
-        let mut vm = VM::new();
-        let source = r#"
+            "#;
+    static SOURCE_VARIABLES2: &str = r#"
             var a = 1;
             var b = 2;
             var c = a + b;
             c = c + a + b;
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
+            "#;
 
-    #[test]
-    fn test_control_flow() {
-        let mut vm = VM::new();
-        let source = r#"
+    static SOURCE_CONTROL_FLOW: &str = r#"
             var a = 0;
             if (true) { a = 1; } else { a = 2; }
             var b = 0;
             while (b < 3) { b = b + 1; }
             var c = 0;
             for (var i = 0; i < 3; i = i + 1) { c = c + 1; }
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-
-    #[test]
-    fn test_closures() {
-        let mut vm = VM::new();
-        let source = r#"
+            "#;
+    static SOURCE_CLOSURES: &str = r#"
             fun makeCounter() {
               var i = 0;
               fun count() {
@@ -1105,101 +1085,20 @@ mod tests {
             var counter = makeCounter();
             counter();
             counter();
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-
-    #[test]
-    fn test_classes() {
-        let mut vm = VM::new();
-        let source = r#"
+            "#;
+    static SOURCE_CLASS1: &str = r#"
             class Cake {
               eat() {
                 return "Eating cake";
               }
             }
             var cake = Cake();
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-
-    #[test]
-    fn test_class_basic() {
-        let mut vm = VM::new();
-        let source = r#"
+        "#;
+    static SOURCE_CLASS2: &str = r#"
             class Cake {}
             var cake = Cake();
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-
-    #[test]
-    fn test_inheritance() {
-        let mut vm = VM::new();
-        let source = r#"
-            class superClass {
-                doStaff() {
-                   print "Inheritance works";
-                }
-            }
-            class subClass < superClass {
-                doStaff() {
-                   super.doStaff();
-                }
-            }
-            var obj = subClass();
-            obj.doStaff();
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_plus_equal() {
-        let mut vm = VM::new();
-        let source = r#"
-           var x = 10;
-           x += 2;
-           print x;
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_recursion() {
-        let mut vm = VM::new();
-        let source = r#"
-        fun test(i) {
-            if (i > 0) {
-                test(i - 1);
-                print i;
-              }
-        }
-        test(4);
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_class_methods() {
-        let mut vm = VM::new();
-        let source = r#"
-        class TestClass {
-                class doStaff() {
-                   print "class method";
-            }
-        }
-        TestClass.doStaff();
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_class1() {
-        let mut vm = VM::new();
-        let source = r#"
+        "#;
+    static SOURCE_CLASS3: &str = r#"
         class TestClass {
             doStaff() {
                 print "doing staff";
@@ -1213,14 +1112,8 @@ mod tests {
         print testObject.test;
         testObject.doStaff();
         print testObject.doStaff();
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_class2() {
-        let mut vm = VM::new();
-        let source = r#"
+        "#;
+    static SOURCE_CLASS4: &str = r#"
         class TestClass {
                 init(x) {
                   this.test = x;
@@ -1231,14 +1124,8 @@ mod tests {
         }
         var obj = TestClass(2);
         obj.doStaff(4);
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_class3() {
-        let mut vm = VM::new();
-        let source = r#"
+        "#;
+    static SOURCE_CLASS5: &str = r#"
         class TestClass {
                 init(x) {
                   print("in init");
@@ -1250,14 +1137,8 @@ mod tests {
         }
         var obj = TestClass("test");
         obj.doStaff();
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_class4() {
-        let mut vm = VM::new();
-        let source = r#"class TestClass {
+        "#;
+    static SOURCE_CLASS6: &str = r#"class TestClass {
                                 init(x) {
                                   this.test = x;
                                 }
@@ -1270,14 +1151,8 @@ mod tests {
                           while (sum < 1000) {
                             sum = sum + obj.doStaff(4) + obj.doStaff(4);
                           }
-                          print sum;"#
-            .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_class5() {
-        let mut vm = VM::new();
-        let source = r#"class TestClass {
+                          print sum;"#;
+    static SOURCE_CLASS7: &str = r#"class TestClass {
                                 init() {
                                   this.test = 5;
                                 }
@@ -1290,14 +1165,10 @@ mod tests {
                           while (sum < 1000) {
                             sum = sum + obj.doStaff() + obj.doStaff();
                           }
-                          print sum;"#
-            .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_class6() {
-        let mut vm = VM::new();
-        let source = r#"class TestClass {
+                          print sum;"#;
+
+    static SOURCE_CLASS8: &str = r#"
+                            class TestClass {
                                 init() {
                                   this.test1 = 5;
                                   this.test2 = 4;
@@ -1314,36 +1185,62 @@ mod tests {
                           while (sum < 1000) {
                             sum = sum + o.doStaff1() + o.doStaff2();
                           }
-                          print sum;"#
-            .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_class7() {
-        let mut vm = VM::new();
-        let source = r#"class TestClass {
+                          print sum;"#;
+    static SOURCE_CLASS9: &str = r#"
+                       class TestClass {
                             init() {
                               this.test1 = 1;
                               this.test2 = 2;
-                              this.test3 = 3; // stack underflow
+                              this.test3 = 3;
                             }
                             staff1() { return this.test1; }
                             staff2() { return this.test2; }
                             staff3() { return this.test3; }
-                        }
+                      }
                      var obj = TestClass();
                      var sum = 0;
                      while (sum < 1000) {
                        sum = sum + obj.staff1() + obj.staff2() + obj.staff3();
                      }
-                      print sum;"#
-            .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_native() {
-        let mut vm = VM::new();
-        let source = r#"
+                     print sum;"#;
+    static SOURCE_INHERITANCE: &str = r#"
+            class superClass {
+                doStaff() {
+                   print "Inheritance works";
+                }
+            }
+            class subClass < superClass {
+                doStaff() {
+                   super.doStaff();
+                }
+            }
+            var obj = subClass();
+            obj.doStaff();
+            "#;
+    static SOURCE_PLUS_EQUAL: &str = r#"
+           var x = 10;
+           x += 2;
+           print x;
+          "#;
+    static SOURCE_RECURSION: &str = r#"
+        fun test(i) {
+            if (i > 0) {
+                test(i - 1);
+                print i;
+              }
+        }
+        test(4);
+        "#;
+    static SOURCE_CLASS_METHOD: &str = r#"
+        class TestClass {
+                doStaff() {
+                   print "class method";
+            }
+        }
+        TestClass.doStaff();
+        "#;
+
+    static SOURCE_NATIVE1: &str = r#"
         var start = clock();
         var sum = 0;
         while (sum < 1000) {
@@ -1351,21 +1248,17 @@ mod tests {
         }
         print clock() - start;
         print sum;
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_native2() {
-        let mut vm = VM::new();
-        let source = r#"class TestClass {
+        "#;
+
+    static SOURCE_NATIVE2: &str = r#"
+                           class TestClass {
                                 init(x) {
                                   this.test=x;
                                 }
                                 doStaff(y) {
                                   return this.test + y;
                                 }
-                            }
+                          }
                           var obj = TestClass(2);
                           var sum = 0;
                           var start = clock();
@@ -1373,14 +1266,9 @@ mod tests {
                             sum = sum + obj.doStaff(4);
                           }
                           print clock() - start;
-                          print sum;"#
-            .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_benchmark() {
-        let mut vm = VM::new();
-        let source = r#"
+                          print sum;"#;
+
+    static SOURCE_BENCHMARK: &str = r#"
         class zoo {
             init() {
                 this.aardvark = 1;
@@ -1400,20 +1288,14 @@ mod tests {
 
         var z = zoo();
         var sum = 0;
-       var start = clock();
+        var start = clock();
         while (sum < 1099900) {
             sum = sum + z.ant() + z.banana() + z.tuna() + z.hay() + z.grass() + z.moose();
         }
         print clock() - start;
         print sum;
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_fib() {
-        let mut vm = VM::new();
-        let source = r#"
+        "#;
+    static SOURCE_FIB: &str = r#"
         fun fib(n) {
           if (n <= 1) return n;
           return fib(n - 2) + fib(n - 1);
@@ -1422,14 +1304,8 @@ mod tests {
         for (var i = 0; i < 26; i = i + 1) {
           print fib(i);
         }
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
-    }
-    #[test]
-    fn test_while() {
-        let mut vm = VM::new();
-        let source = r#"
+        "#;
+    static SOURCE_WHILE: &str = r#"
         {
             var i = 0;
             while (i < 10) {
@@ -1437,8 +1313,38 @@ mod tests {
                 i = i +1;
             }
         }
-        "#
-        .to_string();
-        assert_eq!(vm.interpret(source), InterpretResult::InterpretOk);
+        "#;
+
+    #[rstest]
+    #[case(SOURCE_ARITHMETIC1)]
+    #[case(SOURCE_ARITHMETIC2)]
+    #[case(SOURCE_VARIABLES1)]
+    #[case(SOURCE_VARIABLES2)]
+    #[case(SOURCE_CONTROL_FLOW)]
+    #[case(SOURCE_CLOSURES)]
+    #[case(SOURCE_CLASS1)]
+    #[case(SOURCE_CLASS2)]
+    #[case(SOURCE_CLASS3)]
+    #[case(SOURCE_CLASS4)]
+    #[case(SOURCE_CLASS5)]
+    #[case(SOURCE_CLASS6)]
+    #[case(SOURCE_CLASS7)]
+    #[case(SOURCE_CLASS8)]
+    #[case(SOURCE_CLASS9)]
+    #[case(SOURCE_INHERITANCE)]
+    #[case(SOURCE_PLUS_EQUAL)]
+    #[case(SOURCE_RECURSION)]
+    #[case(SOURCE_CLASS_METHOD)]
+    #[case(SOURCE_NATIVE1)]
+    #[case(SOURCE_NATIVE2)]
+    #[case(SOURCE_BENCHMARK)]
+    #[case(SOURCE_FIB)]
+    #[case(SOURCE_WHILE)]
+    fn test(#[case] source: &str) {
+        let mut vm = VM::new();
+        assert_eq!(
+            vm.interpret(source.to_string()),
+            InterpretResult::InterpretOk
+        );
     }
 }
