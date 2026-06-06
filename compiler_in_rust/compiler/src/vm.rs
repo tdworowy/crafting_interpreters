@@ -1051,8 +1051,8 @@ impl VM {
 mod tests {
     use super::*;
     use rstest::rstest;
-    static SOURCE_ARITHMETIC1: &str = "1 + 2 * 3;";
-    static SOURCE_ARITHMETIC2: &str = "1 + 2 + 3;";
+    static SOURCE_ARITHMETIC1: &str = "1 + 2 * 3 - 2;";
+    static SOURCE_ARITHMETIC2: &str = "1 + 2 + 3 / 4;";
     static SOURCE_VARIABLES1: &str = r#"
             var a = 1;
             var b = 2;
@@ -1068,10 +1068,16 @@ mod tests {
     static SOURCE_CONTROL_FLOW: &str = r#"
             var a = 0;
             if (true) { a = 1; } else { a = 2; }
+            if (false) { a = 1; } else { a = 2; }
             var b = 0;
             while (b < 3) { b = b + 1; }
             var c = 0;
             for (var i = 0; i < 3; i = i + 1) { c = c + 1; }
+            if (2 > 1) { print "test"; } else { print "tset"; }
+            if (2 >= 1) { print "test"; } else { print "tset"; }
+            if (2 == 1) { print "test"; } else { print "tset"; }
+            if (2 <= 1) { print "test"; } else { print "tset"; }
+            if (2 < 1) { print "test"; } else { print "tset"; }
             "#;
     static SOURCE_CLOSURES: &str = r#"
             fun makeCounter() {
@@ -1203,7 +1209,7 @@ mod tests {
                        sum = sum + obj.staff1() + obj.staff2() + obj.staff3();
                      }
                      print sum;"#;
-    static SOURCE_INHERITANCE: &str = r#"
+    static SOURCE_INHERITANCE1: &str = r#"
             class superClass {
                 doStaff() {
                    print "Inheritance works";
@@ -1215,6 +1221,26 @@ mod tests {
                 }
             }
             var obj = subClass();
+            obj.doStaff();
+            "#;
+    static SOURCE_INHERITANCE2: &str = r#"
+            class superClass {
+                init(x) {
+                  this.test = x;
+                }
+                doStaff(y) {
+                   print this.test + y;
+                }
+            }
+            class subClass < superClass {
+                init(x) {
+                  this.test = x;
+                }
+                doStaff() {
+                   super.doStaff(12);
+                }
+            }
+            var obj = subClass(10);
             obj.doStaff();
             "#;
     static SOURCE_PLUS_EQUAL: &str = r#"
@@ -1314,6 +1340,12 @@ mod tests {
             }
         }
         "#;
+    static SOURCE_CONCATENATE: &str = r#"
+        var x = "test1";
+        var y = "test2";
+        var z = x + y;
+        print z + z;
+        "#;
 
     #[rstest]
     #[case(SOURCE_ARITHMETIC1)]
@@ -1331,7 +1363,8 @@ mod tests {
     #[case(SOURCE_CLASS7)]
     #[case(SOURCE_CLASS8)]
     #[case(SOURCE_CLASS9)]
-    #[case(SOURCE_INHERITANCE)]
+    #[case(SOURCE_INHERITANCE1)]
+    //#[case(SOURCE_INHERITANCE2)] TODO fix
     #[case(SOURCE_PLUS_EQUAL)]
     #[case(SOURCE_RECURSION)]
     #[case(SOURCE_CLASS_METHOD)]
@@ -1340,6 +1373,7 @@ mod tests {
     #[case(SOURCE_BENCHMARK)]
     #[case(SOURCE_FIB)]
     #[case(SOURCE_WHILE)]
+    #[case(SOURCE_CONCATENATE)]
     fn test(#[case] source: &str) {
         let mut vm = VM::new();
         assert_eq!(
