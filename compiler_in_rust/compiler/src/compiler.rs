@@ -674,12 +674,13 @@ impl Compiler {
         let name = self.identifier_constant_once(&self.previous.clone());
 
         self.named_variable(self.synthetic_token("this".to_owned()), false);
-        self.named_variable(self.synthetic_token("super".to_owned()), false);
 
         if self.match_token(TokenType::TokenLeftParen) {
             let arg_count = self.argument_list();
+            self.named_variable(self.synthetic_token("super".to_owned()), false);
             self.emit_byte(OpCode::SuperInvoke(name, arg_count));
         } else {
+            self.named_variable(self.synthetic_token("super".to_owned()), false);
             self.emit_byte(OpCode::GetSuper(name));
         }
     }

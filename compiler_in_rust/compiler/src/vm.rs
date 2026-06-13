@@ -90,7 +90,8 @@ impl VM {
         self.stack[index as usize].to_owned()
     }
     fn print_stack(&self) {
-        println!("Stack (top -> bottom)");
+        println!("################");
+        println!("Stack (bottom -> top)");
         for (i, v) in self.stack.iter().enumerate() {
             if i >= self.stack_top {
                 break;
@@ -1234,7 +1235,27 @@ mod tests {
             }
             class subClass < superClass {
                 init(x) {
+                  super.init(x);
+                }
+                doStaff() {
+                   super.doStaff(12);
+                }
+            }
+            var obj = subClass(10);
+            obj.doStaff();
+            "#;
+    static SOURCE_INHERITANCE3: &str = r#"
+            class superClass {
+                init(x) {
                   this.test = x;
+                }
+                doStaff(y) {
+                   print this.test + y;
+                }
+            }
+            class subClass < superClass {
+                init(z) {
+                  this.test = z;
                 }
                 doStaff() {
                    super.doStaff(12);
@@ -1364,7 +1385,8 @@ mod tests {
     #[case(SOURCE_CLASS8)]
     #[case(SOURCE_CLASS9)]
     #[case(SOURCE_INHERITANCE1)]
-    //#[case(SOURCE_INHERITANCE2)] TODO fix
+    #[case(SOURCE_INHERITANCE2)]
+    #[case(SOURCE_INHERITANCE3)]
     #[case(SOURCE_PLUS_EQUAL)]
     #[case(SOURCE_RECURSION)]
     #[case(SOURCE_CLASS_METHOD)]
